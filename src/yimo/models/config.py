@@ -33,6 +33,7 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     active_provider: str = Field(default="default", description="Active provider name")
+    ui_language: str | None = Field(default=None, description="UI language: en or zh_CN; if missing, use system language")
     providers: List[ProviderConfig] = Field(
         default_factory=lambda: [
             ProviderConfig(
@@ -67,7 +68,7 @@ class AppConfig(BaseModel):
 
     def save(self, path: Path | None = None) -> None:
         config_path = Path(path) if path is not None else self.default_path()
-        dump_yaml(config_path, self.model_dump(mode="json"))
+        dump_yaml(config_path, self.model_dump(mode="json", exclude_none=True))
 
     def get_active_provider(self) -> ProviderConfig:
         if not self.providers:
