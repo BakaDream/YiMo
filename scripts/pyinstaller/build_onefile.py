@@ -61,6 +61,9 @@ def main() -> int:
     # PyInstaller warns that --onefile + macOS .app bundles clash with platform security
     # and will become an error in v7. Use onedir for macOS and zip the .app as a single artifact.
     mode_flag = "--onedir" if os_name == "macos" else "--onefile"
+    data_sep = ";" if os_name == "windows" else ":"
+    qss_src = repo_root / "src" / "yimo" / "gui" / "styles" / "light.qss"
+    qss_dest = f"yimo{os.sep}gui{os.sep}styles"
 
     args: list[str] = [
         "--noconfirm",
@@ -78,6 +81,8 @@ def main() -> int:
         str(spec_dir),
         "--paths",
         str(repo_root / "src"),
+        "--add-data",
+        f"{qss_src}{data_sep}{qss_dest}",
         "--collect-all",
         "PySide6",
         "--collect-all",
