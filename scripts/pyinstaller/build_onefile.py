@@ -49,7 +49,7 @@ def main() -> int:
     os_name = _normalize_os_name(sys.platform)
     arch = _normalize_arch(platform.machine())
 
-    app_name = "mkdocs-translate"
+    app_name = "yimo"
     entrypoint = repo_root / "main.py"
     if not entrypoint.exists():
         raise FileNotFoundError(f"Entrypoint not found: {entrypoint}")

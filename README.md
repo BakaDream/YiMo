@@ -25,10 +25,10 @@ uv run --with pyinstaller --with pyinstaller-hooks-contrib python scripts/pyinst
 输出目录：`dist/pyinstaller/<os>-<arch>/`
 
 - Windows / Linux：生成单文件可执行（`--onefile`）
-  - Windows：`dist/pyinstaller/windows-x86_64/mkdocs-translate.exe`
-  - Linux：`dist/pyinstaller/linux-x86_64/mkdocs-translate`
+  - Windows：`dist/pyinstaller/windows-x86_64/yimo.exe`
+  - Linux：`dist/pyinstaller/linux-x86_64/yimo`
 - macOS：生成 `.app` 后打包为 zip（`--onedir + --windowed`，最终产物仍是单个 zip 文件）
-  - `dist/pyinstaller/macos-*/mkdocs-translate-macos-*.zip`
+  - `dist/pyinstaller/macos-*/yimo-macos-*.zip`
 
 > macOS 的 `.app` 不建议使用 `--onefile`（PyInstaller 已提示未来版本会报错），因此脚本在 macOS 自动改用 `--onedir` 并 zip 输出。
 
