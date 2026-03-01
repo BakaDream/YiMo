@@ -3,7 +3,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Generator, Optional
-from mkdocs_translate.utils.constants import EXCLUDED_DIRS, TRANSLATABLE_EXTENSIONS, RESOURCE_EXTENSIONS
+from yimo.utils.constants import EXCLUDED_DIRS, TRANSLATABLE_EXTENSIONS, RESOURCE_EXTENSIONS
 
 def is_excluded(path: Path) -> bool:
     """Check if the path is in the excluded list."""

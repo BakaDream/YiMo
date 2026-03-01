@@ -1,6 +1,6 @@
 import asyncio
 from openai import AsyncOpenAI
-from mkdocs_translate.models.config import AppConfig
+from yimo.models.config import AppConfig
 
 class Translator:
     def __init__(self, config: AppConfig):

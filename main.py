@@ -1,4 +1,4 @@
-from mkdocs_translate.app import main
+from yimo.app import main
 
 if __name__ == "__main__":
     main()

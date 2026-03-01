@@ -5,7 +5,7 @@ from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from mkdocs_translate.utils.constants import (
+from yimo.utils.constants import (
     DEFAULT_MAX_CONCURRENCY,
     DEFAULT_MODEL,
     DEFAULT_REQUEST_TIMEOUT,
@@ -13,7 +13,7 @@ from mkdocs_translate.utils.constants import (
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_TEMPERATURE,
 )
-from mkdocs_translate.utils.yaml_utils import dump_yaml, load_yaml
+from yimo.utils.yaml_utils import dump_yaml, load_yaml
 
 
 DEFAULT_CONFIG_FILENAME = "mkdocs-translate.yaml"

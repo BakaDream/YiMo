@@ -6,7 +6,7 @@ from PySide6.QtCore import (
     Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Slot, QUrl
 )
 from PySide6.QtGui import QAction, QCursor, QDesktopServices
-from mkdocs_translate.models.task import TranslationTask, TaskStatus
+from yimo.models.task import TranslationTask, TaskStatus
 
 class TaskTableModel(QAbstractTableModel):
     def __init__(self, tasks: List[TranslationTask] = None):

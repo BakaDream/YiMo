@@ -15,9 +15,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from mkdocs_translate.models.config import AppConfig, ProviderConfig
-from mkdocs_translate.gui.widgets.provider_manager_dialog import ProviderManagerDialog
-from mkdocs_translate.utils.constants import DEFAULT_SYSTEM_PROMPT
+from yimo.models.config import AppConfig, ProviderConfig
+from yimo.gui.widgets.provider_manager_dialog import ProviderManagerDialog
+from yimo.utils.constants import DEFAULT_SYSTEM_PROMPT
 
 
 class SettingsDialog(QDialog):

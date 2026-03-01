@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 
-from mkdocs_translate.models.config import ProviderConfig
-from mkdocs_translate.utils.constants import OPENAI_MODELS
+from yimo.models.config import ProviderConfig
+from yimo.utils.constants import OPENAI_MODELS
 
 
 class ProviderEditorDialog(QDialog):

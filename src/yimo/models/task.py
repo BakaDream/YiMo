@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, List
 from pydantic import BaseModel
 
-from mkdocs_translate.utils.yaml_utils import dump_yaml, load_yaml
+from yimo.utils.yaml_utils import dump_yaml, load_yaml
 
 class TaskStatus(str, Enum):
     PENDING = "pending"

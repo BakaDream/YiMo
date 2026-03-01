@@ -2,11 +2,11 @@ import asyncio
 import threading
 from pathlib import Path
 from typing import List, Callable, Optional
-from mkdocs_translate.models.config import AppConfig
-from mkdocs_translate.models.task import TranslationTask, TaskStatus
-from mkdocs_translate.core.translator import Translator
-from mkdocs_translate.utils.file_utils import collect_files, classify_file, copy_file, read_file_content, write_file_content
-from mkdocs_translate.utils.rate_limiter import RateLimiter
+from yimo.models.config import AppConfig
+from yimo.models.task import TranslationTask, TaskStatus
+from yimo.core.translator import Translator
+from yimo.utils.file_utils import collect_files, classify_file, copy_file, read_file_content, write_file_content
+from yimo.utils.rate_limiter import RateLimiter
 
 class Processor:
     def __init__(self, config: AppConfig):

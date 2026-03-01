@@ -8,13 +8,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QThread, Signal, Slot, QObject, Qt, QEvent
 from PySide6.QtGui import QAction, QCloseEvent
 
-from mkdocs_translate.models.config import AppConfig
-from mkdocs_translate.core.processor import Processor
-from mkdocs_translate.models.task import TaskStatus, TranslationTask, ProjectState
-from mkdocs_translate.gui.widgets.file_selector import FileSelector
-from mkdocs_translate.gui.widgets.progress_panel import ProgressPanel
-from mkdocs_translate.gui.widgets.settings_dialog import SettingsDialog
-from mkdocs_translate.gui.widgets.task_list import TaskListView
+from yimo.models.config import AppConfig
+from yimo.core.processor import Processor
+from yimo.models.task import TaskStatus, TranslationTask, ProjectState
+from yimo.gui.widgets.file_selector import FileSelector
+from yimo.gui.widgets.progress_panel import ProgressPanel
+from yimo.gui.widgets.settings_dialog import SettingsDialog
+from yimo.gui.widgets.task_list import TaskListView
 
 class WorkerSignals(QObject):
     progress = Signal(object) # TranslationTask

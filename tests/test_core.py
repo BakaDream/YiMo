@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
-from mkdocs_translate.utils.file_utils import is_excluded, classify_file
-from mkdocs_translate.models.config import AppConfig
+from yimo.utils.file_utils import is_excluded, classify_file
+from yimo.models.config import AppConfig
 
 class TestFileUtils(unittest.TestCase):
     def test_is_excluded(self):
