@@ -4,7 +4,7 @@ from yimo.gui.main_window import MainWindow
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("MkDocs Translate")
+    app.setApplicationName("YiMo 译墨")
     
     window = MainWindow()
     window.show()
