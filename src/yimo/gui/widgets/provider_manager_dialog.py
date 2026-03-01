@@ -22,12 +22,14 @@ from PySide6.QtWidgets import (
 
 from yimo.models.config import ProviderConfig
 from yimo.utils.constants import OPENAI_MODELS
+from yimo.i18n.manager import I18nManager
 
 
 class ProviderEditorDialog(QDialog):
-    def __init__(self, provider: ProviderConfig, existing_names: set[str], parent=None):
+    def __init__(self, provider: ProviderConfig, existing_names: set[str], i18n: I18nManager, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Edit Provider")
+        self.i18n = i18n
+        self.setWindowTitle(self.i18n.t("pm.edit_title"))
         self.resize(520, 320)
 
         self._provider = provider.model_copy(deep=True)
@@ -52,13 +54,13 @@ class ProviderEditorDialog(QDialog):
         self.rpm_spin.setRange(-1, 10000)
         self.rpm_spin.setSuffix(" req/min")
         self.rpm_spin.setValue(int(self._provider.rpm_limit))
-        self.rpm_spin.setToolTip("Requests per minute; <= 0 means unlimited")
+        self.rpm_spin.setToolTip(self.i18n.t("pm.rpm.tooltip"))
 
-        form.addRow("Name:", self.name_edit)
-        form.addRow("Base URL:", self.base_url_edit)
-        form.addRow("API Key:", self.api_key_edit)
-        form.addRow("Model:", self.model_combo)
-        form.addRow("Rate Limit (RPM):", self.rpm_spin)
+        form.addRow(self.i18n.t("pm.form.name"), self.name_edit)
+        form.addRow(self.i18n.t("pm.form.base_url"), self.base_url_edit)
+        form.addRow(self.i18n.t("pm.form.api_key"), self.api_key_edit)
+        form.addRow(self.i18n.t("pm.form.model"), self.model_combo)
+        form.addRow(self.i18n.t("pm.form.rpm"), self.rpm_spin)
 
         layout.addLayout(form)
 
@@ -70,23 +72,23 @@ class ProviderEditorDialog(QDialog):
     def _validate(self) -> None:
         name = self.name_edit.text().strip()
         if not name:
-            raise ValueError("Provider name is required.")
+            raise ValueError(self.i18n.t("pm.err.name_required"))
         if name in self._existing_names:
-            raise ValueError(f"Duplicate provider name: {name}")
+            raise ValueError(self.i18n.t("pm.err.duplicate", name=name))
 
         base_url = self.base_url_edit.text().strip()
         if not base_url:
-            raise ValueError("Base URL is required.")
+            raise ValueError(self.i18n.t("pm.err.base_url_required"))
 
         model = self.model_combo.currentText().strip()
         if not model:
-            raise ValueError("Model is required.")
+            raise ValueError(self.i18n.t("pm.err.model_required"))
 
     def accept(self):
         try:
             self._validate()
         except Exception as e:
-            QMessageBox.warning(self, "Validation Error", str(e))
+            QMessageBox.warning(self, self.i18n.t("settings.validation.title"), str(e))
             return
 
         self._provider.name = self.name_edit.text().strip()
@@ -101,9 +103,10 @@ class ProviderEditorDialog(QDialog):
 
 
 class ProviderManagerDialog(QDialog):
-    def __init__(self, providers: List[ProviderConfig], parent=None):
+    def __init__(self, providers: List[ProviderConfig], i18n: I18nManager, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Manage Providers")
+        self.i18n = i18n
+        self.setWindowTitle(self.i18n.t("pm.manage_title"))
         self.resize(780, 420)
 
         self._providers: List[ProviderConfig] = [p.model_copy(deep=True) for p in providers]
@@ -112,12 +115,19 @@ class ProviderManagerDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        help_label = QLabel("API Key is hidden in the list view. Use Add/Edit to update it.")
+        help_label = QLabel(self.i18n.t("pm.help"))
         layout.addWidget(help_label)
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Name", "Base URL", "Model", "RPM"])
+        self.table.setHorizontalHeaderLabels(
+            [
+                self.i18n.t("pm.table.name"),
+                self.i18n.t("pm.table.base_url"),
+                self.i18n.t("pm.table.model"),
+                self.i18n.t("pm.table.rpm"),
+            ]
+        )
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -127,9 +137,9 @@ class ProviderManagerDialog(QDialog):
         btn_layout = QHBoxLayout(btn_row)
         btn_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.btn_add = QPushButton("Add")
-        self.btn_edit = QPushButton("Edit")
-        self.btn_remove = QPushButton("Remove")
+        self.btn_add = QPushButton(self.i18n.t("pm.btn.add"))
+        self.btn_edit = QPushButton(self.i18n.t("pm.btn.edit"))
+        self.btn_remove = QPushButton(self.i18n.t("pm.btn.remove"))
         btn_layout.addWidget(self.btn_add)
         btn_layout.addWidget(self.btn_edit)
         btn_layout.addWidget(self.btn_remove)
@@ -177,7 +187,12 @@ class ProviderManagerDialog(QDialog):
     def add_provider(self) -> None:
         new_provider = ProviderConfig(name=self._unique_name())
         existing_names = {p.name for p in self._providers if p.name}
-        dialog = ProviderEditorDialog(new_provider, existing_names=existing_names - {new_provider.name}, parent=self)
+        dialog = ProviderEditorDialog(
+            new_provider,
+            existing_names=existing_names - {new_provider.name},
+            i18n=self.i18n,
+            parent=self,
+        )
         if dialog.exec():
             self._providers.append(dialog.get_provider())
             self._refresh_table(select_row=len(self._providers) - 1)
@@ -185,12 +200,12 @@ class ProviderManagerDialog(QDialog):
     def edit_provider(self) -> None:
         idx = self._selected_index()
         if idx is None:
-            QMessageBox.information(self, "Info", "Please select a provider to edit.")
+            QMessageBox.information(self, self.i18n.t("info.title"), self.i18n.t("pm.select_to_edit"))
             return
 
         provider = self._providers[idx]
         existing_names = {p.name for p in self._providers if p.name} - {provider.name}
-        dialog = ProviderEditorDialog(provider, existing_names=existing_names, parent=self)
+        dialog = ProviderEditorDialog(provider, existing_names=existing_names, i18n=self.i18n, parent=self)
         if dialog.exec():
             self._providers[idx] = dialog.get_provider()
             self._refresh_table(select_row=idx)
@@ -198,17 +213,17 @@ class ProviderManagerDialog(QDialog):
     def remove_provider(self) -> None:
         idx = self._selected_index()
         if idx is None:
-            QMessageBox.information(self, "Info", "Please select a provider to remove.")
+            QMessageBox.information(self, self.i18n.t("info.title"), self.i18n.t("pm.select_to_remove"))
             return
         if len(self._providers) <= 1:
-            QMessageBox.warning(self, "Validation Error", "At least one provider is required.")
+            QMessageBox.warning(self, self.i18n.t("settings.validation.title"), self.i18n.t("pm.err.need_one"))
             return
 
         provider = self._providers[idx]
         reply = QMessageBox.question(
             self,
-            "Remove Provider",
-            f"Remove provider '{provider.name}'?",
+            self.i18n.t("pm.remove.title"),
+            self.i18n.t("pm.remove.confirm", name=provider.name),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -220,24 +235,24 @@ class ProviderManagerDialog(QDialog):
 
     def _validate(self) -> None:
         if not self._providers:
-            raise ValueError("At least one provider is required.")
+            raise ValueError(self.i18n.t("pm.err.need_one"))
         names: set[str] = set()
         for provider in self._providers:
             if not provider.name:
-                raise ValueError("Provider name is required.")
+                raise ValueError(self.i18n.t("pm.err.name_required"))
             if provider.name in names:
-                raise ValueError(f"Duplicate provider name: {provider.name}")
+                raise ValueError(self.i18n.t("pm.err.duplicate", name=provider.name))
             if not provider.base_url:
-                raise ValueError(f"Provider '{provider.name}': base_url is required.")
+                raise ValueError(self.i18n.t("pm.err.base_url_required_for", name=provider.name))
             if not provider.model:
-                raise ValueError(f"Provider '{provider.name}': model is required.")
+                raise ValueError(self.i18n.t("pm.err.model_required_for", name=provider.name))
             names.add(provider.name)
 
     def accept(self):
         try:
             self._validate()
         except Exception as e:
-            QMessageBox.warning(self, "Validation Error", str(e))
+            QMessageBox.warning(self, self.i18n.t("settings.validation.title"), str(e))
             return
         super().accept()
 

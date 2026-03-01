@@ -18,14 +18,23 @@ from PySide6.QtWidgets import (
 from yimo.models.config import AppConfig, ProviderConfig
 from yimo.gui.widgets.provider_manager_dialog import ProviderManagerDialog
 from yimo.utils.constants import DEFAULT_SYSTEM_PROMPT
+from yimo.i18n.manager import I18nManager
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, config: AppConfig, parent=None):
+    def __init__(self, config: AppConfig, i18n: I18nManager, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Settings")
+        self.i18n = i18n
+        self.setWindowTitle(self.i18n.t("settings.title"))
         self.config = config
         self.resize(650, 720)
+        self._system_locale = None
+        try:
+            from PySide6.QtCore import QLocale
+
+            self._system_locale = QLocale.system().name()
+        except Exception:
+            self._system_locale = "en_US"
 
         self._providers_working = [p.model_copy(deep=True) for p in (config.providers or [])]
         if not self._providers_working:
@@ -42,11 +51,24 @@ class SettingsDialog(QDialog):
         self.provider_combo = QComboBox()
         provider_row_layout.addWidget(self.provider_combo, 1)
 
-        self.btn_manage_providers = QPushButton("Manage Providers...")
+        self.btn_manage_providers = QPushButton(self.i18n.t("settings.manage_providers"))
         self.btn_manage_providers.clicked.connect(self.open_provider_manager)
         provider_row_layout.addWidget(self.btn_manage_providers)
 
         self._refresh_provider_combo(preferred_active_name=config.active_provider)
+
+        # UI language
+        self.language_combo = QComboBox()
+        self.language_combo.addItem(self.i18n.t("settings.language.en"), "en")
+        self.language_combo.addItem(self.i18n.t("settings.language.zh_cn"), "zh_CN")
+
+        # Select: use config.ui_language if valid, otherwise pick by system locale
+        chosen = (self.config.ui_language or "").strip()
+        if chosen not in {"en", "zh_CN"}:
+            chosen = "zh_CN" if self._system_locale == "zh_CN" else "en"
+        idx = self.language_combo.findData(chosen)
+        if idx >= 0:
+            self.language_combo.setCurrentIndex(idx)
 
         # Global fields
         self.concurrency_spin = QSpinBox()
@@ -69,23 +91,24 @@ class SettingsDialog(QDialog):
 
         self.prompt_edit = QPlainTextEdit()
         self.prompt_edit.setPlainText(self.config.system_prompt)
-        self.prompt_edit.setPlaceholderText("Enter System Prompt...")
+        self.prompt_edit.setPlaceholderText(self.i18n.t("settings.prompt.placeholder"))
 
-        self.btn_reset_prompt = QPushButton("Reset to Default")
+        self.btn_reset_prompt = QPushButton(self.i18n.t("settings.prompt.reset"))
         self.btn_reset_prompt.clicked.connect(self.reset_prompt)
 
-        form_layout.addRow("Provider:", provider_row)
-        form_layout.addRow("Max Concurrency:", self.concurrency_spin)
-        form_layout.addRow("Max Retries:", self.retries_spin)
-        form_layout.addRow("Temperature:", self.temp_spin)
-        form_layout.addRow("Request Timeout:", self.timeout_spin)
+        form_layout.addRow(self.i18n.t("settings.provider"), provider_row)
+        form_layout.addRow(self.i18n.t("settings.language"), self.language_combo)
+        form_layout.addRow(self.i18n.t("settings.max_concurrency"), self.concurrency_spin)
+        form_layout.addRow(self.i18n.t("settings.max_retries"), self.retries_spin)
+        form_layout.addRow(self.i18n.t("settings.temperature"), self.temp_spin)
+        form_layout.addRow(self.i18n.t("settings.request_timeout"), self.timeout_spin)
 
         prompt_container = QWidget()
         prompt_layout = QVBoxLayout(prompt_container)
         prompt_layout.setContentsMargins(0, 0, 0, 0)
         prompt_layout.addWidget(self.prompt_edit)
         prompt_layout.addWidget(self.btn_reset_prompt)
-        form_layout.addRow("System Prompt:", prompt_container)
+        form_layout.addRow(self.i18n.t("settings.system_prompt"), prompt_container)
 
         layout.addLayout(form_layout)
 
@@ -113,11 +136,15 @@ class SettingsDialog(QDialog):
             self.provider_combo.blockSignals(False)
 
     def open_provider_manager(self):
-        dialog = ProviderManagerDialog([p.model_copy(deep=True) for p in self._providers_working], self)
+        dialog = ProviderManagerDialog(
+            [p.model_copy(deep=True) for p in self._providers_working],
+            i18n=self.i18n,
+            parent=self,
+        )
         if dialog.exec():
             updated = dialog.get_providers()
             if not updated:
-                QMessageBox.warning(self, "Validation Error", "At least one provider is required.")
+                QMessageBox.warning(self, self.i18n.t("settings.validation.title"), self.i18n.t("settings.validation.need_provider"))
                 return
             self._providers_working = updated
             self._refresh_provider_combo(preferred_active_name=self.provider_combo.currentText())
@@ -138,7 +165,7 @@ class SettingsDialog(QDialog):
         try:
             self._validate()
         except Exception as e:
-            QMessageBox.warning(self, "Validation Error", str(e))
+            QMessageBox.warning(self, self.i18n.t("settings.validation.title"), str(e))
             return
         super().accept()
 
@@ -151,8 +178,13 @@ class SettingsDialog(QDialog):
         if not any(p.name == active_provider_name for p in self._providers_working):
             active_provider_name = self._providers_working[0].name
 
+        ui_language = self.language_combo.currentData()
+        if ui_language not in {"en", "zh_CN"}:
+            ui_language = "en"
+
         return AppConfig(
             active_provider=active_provider_name,
+            ui_language=ui_language,
             providers=[p.model_copy(deep=True) for p in self._providers_working],
             max_concurrency=self.concurrency_spin.value(),
             max_retries=self.retries_spin.value(),

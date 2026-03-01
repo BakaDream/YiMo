@@ -7,12 +7,28 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QAction, QCursor, QDesktopServices
 from yimo.models.task import TranslationTask, TaskStatus
+from yimo.i18n.manager import I18nManager
 
 class TaskTableModel(QAbstractTableModel):
     def __init__(self, tasks: List[TranslationTask] = None):
         super().__init__()
+        self._i18n: I18nManager | None = None
         self._tasks = tasks or []
-        self._headers = ["File Name", "Status", "Retries", "Message"]
+        self._header_keys = [
+            "task.headers.file",
+            "task.headers.status",
+            "task.headers.retries",
+            "task.headers.message",
+        ]
+
+    def set_i18n(self, i18n: I18nManager | None) -> None:
+        self._i18n = i18n
+        if self._header_keys:
+            self.headerDataChanged.emit(Qt.Horizontal, 0, len(self._header_keys) - 1)
+        if self._tasks:
+            start_index = self.index(0, 0)
+            end_index = self.index(len(self._tasks) - 1, self.columnCount() - 1)
+            self.dataChanged.emit(start_index, end_index)
 
     def set_tasks(self, tasks: List[TranslationTask]):
         self.beginResetModel()
@@ -30,7 +46,7 @@ class TaskTableModel(QAbstractTableModel):
             return
             
         start_index = self.index(index_of_task, 0)
-        end_index = self.index(index_of_task, len(self._headers) - 1)
+        end_index = self.index(index_of_task, self.columnCount() - 1)
         
         # Ensure indices are valid before emitting
         if start_index.isValid() and end_index.isValid():
@@ -41,14 +57,14 @@ class TaskTableModel(QAbstractTableModel):
         if not self._tasks:
             return
         start_index = self.index(0, 0)
-        end_index = self.index(len(self._tasks) - 1, len(self._headers) - 1)
+        end_index = self.index(len(self._tasks) - 1, self.columnCount() - 1)
         self.dataChanged.emit(start_index, end_index)
 
     def rowCount(self, parent=QModelIndex()) -> int:
         return len(self._tasks)
 
     def columnCount(self, parent=QModelIndex()) -> int:
-        return len(self._headers)
+        return len(self._header_keys)
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
         if not index.isValid() or not (0 <= index.row() < len(self._tasks)):
@@ -61,7 +77,9 @@ class TaskTableModel(QAbstractTableModel):
             if col == 0:
                 return task.name
             elif col == 1:
-                return task.status.value.upper()
+                if self._i18n is None:
+                    return task.status.value.upper()
+                return self._i18n.t(f"status.{task.status.value}")
             elif col == 2:
                 return task.retries # Return int for proper sorting
             elif col == 3:
@@ -87,14 +105,24 @@ class TaskTableModel(QAbstractTableModel):
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self._headers[section]
+            if 0 <= section < len(self._header_keys):
+                key = self._header_keys[section]
+                if self._i18n is None:
+                    return {
+                        "task.headers.file": "File Name",
+                        "task.headers.status": "Status",
+                        "task.headers.retries": "Retries",
+                        "task.headers.message": "Message",
+                    }.get(key, key)
+                return self._i18n.t(key)
         return None
 
 class MessageDialog(QDialog):
-    def __init__(self, title, message, parent=None):
+    def __init__(self, title, message, i18n: I18nManager | None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.resize(600, 400)
+        self._i18n = i18n
         
         layout = QVBoxLayout(self)
         
@@ -102,7 +130,7 @@ class MessageDialog(QDialog):
         self.text_edit.setPlainText(message)
         self.text_edit.setReadOnly(True)
         
-        self.btn_close = QPushButton("Close")
+        self.btn_close = QPushButton(self._i18n.t("task.msg.close") if self._i18n else "Close")
         self.btn_close.clicked.connect(self.accept)
         
         layout.addWidget(self.text_edit)
@@ -111,6 +139,7 @@ class MessageDialog(QDialog):
 class TaskListView(QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._i18n: I18nManager | None = None
         self.task_model = TaskTableModel()
         
         # Proxy model for sorting
@@ -136,6 +165,10 @@ class TaskListView(QTableView):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
+    def retranslate_ui(self, i18n: I18nManager | None) -> None:
+        self._i18n = i18n
+        self.task_model.set_i18n(i18n)
+
     def show_context_menu(self, pos):
         index = self.indexAt(pos)
         if not index.isValid():
@@ -148,8 +181,8 @@ class TaskListView(QTableView):
         menu = QMenu(self)
         
         # File Operations (Source)
-        action_open_file = QAction("Open Source File", self)
-        action_copy_path = QAction("Copy Source Absolute Path", self)
+        action_open_file = QAction(self._i18n.t("task.ctx.open_source") if self._i18n else "Open Source File", self)
+        action_copy_path = QAction(self._i18n.t("task.ctx.copy_source") if self._i18n else "Copy Source Absolute Path", self)
         
         action_open_file.triggered.connect(lambda: self.open_file(index))
         action_copy_path.triggered.connect(lambda: self.copy_path(index))
@@ -159,8 +192,8 @@ class TaskListView(QTableView):
         menu.addSeparator()
 
         # File Operations (Destination)
-        action_open_dest = QAction("View Translated File", self)
-        action_copy_dest = QAction("Copy Translated Path", self)
+        action_open_dest = QAction(self._i18n.t("task.ctx.view_dest") if self._i18n else "View Translated File", self)
+        action_copy_dest = QAction(self._i18n.t("task.ctx.copy_dest") if self._i18n else "Copy Translated Path", self)
         
         # Check if destination file exists
         dest_exists = task.dest_path.exists()
@@ -175,8 +208,8 @@ class TaskListView(QTableView):
         menu.addSeparator()
 
         # Message Operations
-        action_copy_msg = QAction("Copy Message", self)
-        action_view_msg = QAction("View Message", self)
+        action_copy_msg = QAction(self._i18n.t("task.ctx.copy_msg") if self._i18n else "Copy Message", self)
+        action_view_msg = QAction(self._i18n.t("task.ctx.view_msg") if self._i18n else "View Message", self)
         
         action_copy_msg.triggered.connect(lambda: self.copy_message(index))
         action_view_msg.triggered.connect(lambda: self.view_message(index))
@@ -199,7 +232,8 @@ class TaskListView(QTableView):
         if task and task.source_path.exists():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(task.source_path.absolute())))
         else:
-            QMessageBox.warning(self, "Error", "File does not exist.")
+            title = self._i18n.t("err.app.title") if self._i18n else "Error"
+            QMessageBox.warning(self, title, self._i18n.t("task.err.file_missing") if self._i18n else "File does not exist.")
 
     def copy_path(self, index: QModelIndex):
         task = self.get_task_from_proxy_index(index)
@@ -211,7 +245,12 @@ class TaskListView(QTableView):
         if task and task.dest_path.exists():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(task.dest_path.absolute())))
         else:
-            QMessageBox.warning(self, "Error", "Translated file does not exist yet.")
+            title = self._i18n.t("err.app.title") if self._i18n else "Error"
+            QMessageBox.warning(
+                self,
+                title,
+                self._i18n.t("task.err.dest_missing") if self._i18n else "Translated file does not exist yet.",
+            )
 
     def copy_dest_path(self, task: TranslationTask):
         if task:
@@ -227,6 +266,9 @@ class TaskListView(QTableView):
     def view_message(self, index: QModelIndex):
         task = self.get_task_from_proxy_index(index)
         if task:
-             msg = task.error_message or "No message."
-             dialog = MessageDialog(f"Message for {task.name}", msg, self)
-             dialog.exec()
+            msg = task.error_message or (self._i18n.t("task.msg.none") if self._i18n else "No message.")
+            title = (
+                self._i18n.t("task.msg.title", name=task.name) if self._i18n else f"Message for {task.name}"
+            )
+            dialog = MessageDialog(title, msg, i18n=self._i18n, parent=self)
+            dialog.exec()
