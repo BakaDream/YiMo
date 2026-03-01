@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QPushButton, QMessageBox, QStatusBar, QToolBar, QSplitter, QFileDialog
 )
-from PySide6.QtCore import QThread, Signal, Slot, QObject, Qt, QEvent
+from PySide6.QtCore import QThread, Signal, Slot, QObject, Qt, QEvent, QLocale
 from PySide6.QtGui import QAction, QCloseEvent
 
 from yimo.models.config import AppConfig
@@ -15,6 +15,7 @@ from yimo.gui.widgets.file_selector import FileSelector
 from yimo.gui.widgets.progress_panel import ProgressPanel
 from yimo.gui.widgets.settings_dialog import SettingsDialog
 from yimo.gui.widgets.task_list import TaskListView
+from yimo.i18n.manager import I18nManager
 
 class WorkerSignals(QObject):
     progress = Signal(object) # TranslationTask
@@ -51,15 +52,25 @@ class TranslationWorker(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("YiMo 译墨")
+        self.i18n = I18nManager()
         self.resize(1000, 700)
         
         # Load Config
         try:
             self.config = AppConfig.load()
         except Exception as e:
-            QMessageBox.warning(self, "Config Error", f"Failed to load {AppConfig.default_path()}: {e}\nUsing defaults.")
             self.config = AppConfig()
+            self.i18n.set_from_config(self.config, QLocale.system().name())
+            QMessageBox.warning(
+                self,
+                self.i18n.t("err.config.title"),
+                self.i18n.t(
+                    "err.config.load_failed",
+                    path=str(AppConfig.default_path()),
+                    error=str(e),
+                ),
+            )
+        self.i18n.set_from_config(self.config, QLocale.system().name())
         self.processor = Processor(self.config)
         
         # Central Widget
@@ -83,12 +94,12 @@ class MainWindow(QMainWindow):
         
         # Buttons
         btn_layout = QHBoxLayout()
-        self.btn_scan = QPushButton("Scan Files")
-        self.btn_start = QPushButton("Start Translation")
-        self.btn_stop = QPushButton("Stop")
-        self.btn_retry = QPushButton("Retry Failed")
-        self.btn_save = QPushButton("Save Project")
-        self.btn_load = QPushButton("Load Project")
+        self.btn_scan = QPushButton("")
+        self.btn_start = QPushButton("")
+        self.btn_stop = QPushButton("")
+        self.btn_retry = QPushButton("")
+        self.btn_save = QPushButton("")
+        self.btn_load = QPushButton("")
         
         self.btn_start.setEnabled(False)
         self.btn_stop.setEnabled(False)
@@ -132,19 +143,42 @@ class MainWindow(QMainWindow):
         self.btn_load.clicked.connect(self.load_project)
         self.file_selector.paths_changed.connect(self.on_paths_changed)
 
+        # Initial translations
+        self.apply_i18n()
+
+    def apply_i18n(self) -> None:
+        self.retranslate_ui()
+        self.file_selector.retranslate_ui(self.i18n)
+        self.progress_panel.retranslate_ui(self.i18n)
+        self.task_list.retranslate_ui(self.i18n)
+
+    def retranslate_ui(self) -> None:
+        self.setWindowTitle(self.i18n.t("app.title"))
+        if getattr(self, "toolbar", None) is not None:
+            self.toolbar.setWindowTitle(self.i18n.t("main.toolbar"))
+        if getattr(self, "action_settings", None) is not None:
+            self.action_settings.setText(self.i18n.t("main.settings"))
+
+        self.btn_scan.setText(self.i18n.t("main.scan_files"))
+        self.btn_start.setText(self.i18n.t("main.start"))
+        self.btn_stop.setText(self.i18n.t("main.stop"))
+        self.btn_retry.setText(self.i18n.t("main.retry_failed"))
+        self.btn_save.setText(self.i18n.t("main.save_project"))
+        self.btn_load.setText(self.i18n.t("main.load_project"))
+
     def closeEvent(self, event: QCloseEvent):
         """Handle application closure to ensure threads are stopped."""
         if self.worker and self.worker.isRunning():
             reply = QMessageBox.question(
                 self, 
-                "Exit Confirmation",
-                "Translation is still in progress. Are you sure you want to stop and exit?",
+                self.i18n.t("main.exit.title"),
+                self.i18n.t("main.exit.body"),
                 QMessageBox.Yes | QMessageBox.No, 
                 QMessageBox.No
             )
             
             if reply == QMessageBox.Yes:
-                self.status_bar.showMessage("Stopping background tasks...")
+                self.status_bar.showMessage(self.i18n.t("main.exit.stopping"))
                 # Stop the processor logic
                 self.worker.stop()
                 # Wait for the thread to finish cleanly
@@ -157,21 +191,23 @@ class MainWindow(QMainWindow):
             event.accept()
 
     def setup_toolbar(self):
-        toolbar = QToolBar("Main Toolbar")
-        self.addToolBar(toolbar)
+        self.toolbar = QToolBar(self.i18n.t("main.toolbar"))
+        self.addToolBar(self.toolbar)
         
-        action_settings = QAction("Settings", self)
-        action_settings.triggered.connect(self.open_settings)
-        toolbar.addAction(action_settings)
+        self.action_settings = QAction(self.i18n.t("main.settings"), self)
+        self.action_settings.triggered.connect(self.open_settings)
+        self.toolbar.addAction(self.action_settings)
 
     def open_settings(self):
-        dialog = SettingsDialog(self.config, self)
+        dialog = SettingsDialog(self.config, self.i18n, self)
         if dialog.exec():
             new_config = dialog.get_new_config()
             self.config = new_config
             self.config.save()
             self.processor.update_config(self.config)
-            self.status_bar.showMessage("Settings saved", 3000)
+            self.i18n.set_from_config(self.config, QLocale.system().name())
+            self.apply_i18n()
+            self.status_bar.showMessage(self.i18n.t("main.status.settings_saved"), 3000)
 
     def on_paths_changed(self):
         self.btn_start.setEnabled(False)
@@ -185,7 +221,7 @@ class MainWindow(QMainWindow):
         dest = self.file_selector.dest_edit.text()
         
         if not src or not dest:
-            QMessageBox.warning(self, "Input Error", "Please select source and destination paths.")
+            QMessageBox.warning(self, self.i18n.t("err.input.title"), self.i18n.t("err.input.need_paths"))
             return
 
         try:
@@ -195,16 +231,16 @@ class MainWindow(QMainWindow):
             self.progress_panel.update_progress(count, 0, 0, count)
             self.task_list.task_model.set_tasks(self.tasks)
             
-            self.status_bar.showMessage(f"Found {count} files to process")
+            self.status_bar.showMessage(self.i18n.t("main.status.found_files", count=count))
             self.btn_start.setEnabled(count > 0)
             self.btn_retry.setEnabled(False)
         except Exception as e:
-            QMessageBox.critical(self, "Scan Error", str(e))
+            QMessageBox.critical(self, self.i18n.t("err.scan.title"), str(e))
 
     def start_translation(self):
         provider = self.config.get_active_provider()
         if not provider.api_key:
-             QMessageBox.warning(self, "Configuration Error", "Please set API Key for the active provider in Settings.")
+             QMessageBox.warning(self, self.i18n.t("warn.config.title"), self.i18n.t("warn.config.need_key"))
              self.open_settings()
              return
 
@@ -224,7 +260,7 @@ class MainWindow(QMainWindow):
     def retry_failed(self):
         failed_tasks = [t for t in self.tasks if t.status == TaskStatus.FAILED]
         if not failed_tasks:
-            QMessageBox.information(self, "Info", "No failed tasks to retry.")
+            QMessageBox.information(self, self.i18n.t("info.title"), self.i18n.t("info.no_failed"))
             return
 
         # Reset failed tasks to PENDING
@@ -241,10 +277,15 @@ class MainWindow(QMainWindow):
     
     def save_project(self):
         if not self.tasks:
-            QMessageBox.warning(self, "Warning", "No tasks to save.")
+            QMessageBox.warning(self, self.i18n.t("warn.title"), self.i18n.t("warn.no_tasks_save"))
             return
             
-        path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", "YAML Files (*.yaml *.yml)")
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.i18n.t("dlg.save_project.title"),
+            "",
+            self.i18n.t("dlg.yaml_filter"),
+        )
         if not path:
             return
             
@@ -253,12 +294,17 @@ class MainWindow(QMainWindow):
             dest = Path(self.file_selector.dest_edit.text())
             project = ProjectState(source_dir=src, dest_dir=dest, tasks=self.tasks)
             project.save_to_file(Path(path))
-            self.status_bar.showMessage(f"Project saved to {path}")
+            self.status_bar.showMessage(self.i18n.t("main.status.project_saved", path=path))
         except Exception as e:
-            QMessageBox.critical(self, "Save Error", str(e))
+            QMessageBox.critical(self, self.i18n.t("err.save.title"), str(e))
 
     def load_project(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Load Project", "", "YAML Files (*.yaml *.yml)")
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.i18n.t("dlg.load_project.title"),
+            "",
+            self.i18n.t("dlg.yaml_filter"),
+        )
         if not path:
             return
             
@@ -283,7 +329,7 @@ class MainWindow(QMainWindow):
             self.progress_panel.update_progress(pending, completed, failed, count)
             self.task_list.task_model.set_tasks(self.tasks)
             
-            self.status_bar.showMessage(f"Loaded project from {path}")
+            self.status_bar.showMessage(self.i18n.t("main.status.project_loaded", path=path))
             
             # Reset UI states based on loaded data
             self.btn_start.setEnabled(pending > 0 or failed > 0)
@@ -291,12 +337,12 @@ class MainWindow(QMainWindow):
                 self.btn_retry.setEnabled(True)
                 
         except Exception as e:
-            QMessageBox.critical(self, "Load Error", str(e))
+            QMessageBox.critical(self, self.i18n.t("err.load.title"), str(e))
 
     def stop_translation(self):
         if self.worker:
             self.btn_stop.setEnabled(False)
-            self.status_bar.showMessage("Stopping...")
+            self.status_bar.showMessage(self.i18n.t("main.status.stopping"))
             self.worker.stop()
             # Immediately reset processing tasks to PENDING for visibility.
             for task in self.tasks:
@@ -306,7 +352,7 @@ class MainWindow(QMainWindow):
             completed = sum(1 for t in self.tasks if t.status == TaskStatus.COMPLETED)
             failed = sum(1 for t in self.tasks if t.status == TaskStatus.FAILED)
             pending = sum(1 for t in self.tasks if t.status == TaskStatus.PENDING)
-            self.progress_panel.update_progress(pending, completed, failed, len(self.tasks), "Stopped")
+            self.progress_panel.update_progress(pending, completed, failed, len(self.tasks), self.i18n.t("progress.stopped"))
 
     def on_worker_progress(self, task: TranslationTask):
         completed = sum(1 for t in self.tasks if t.status == TaskStatus.COMPLETED)
@@ -327,7 +373,7 @@ class MainWindow(QMainWindow):
             pass
 
     def on_worker_finished(self):
-        self.status_bar.showMessage("Processing finished")
+        self.status_bar.showMessage(self.i18n.t("main.status.processing_finished"))
         
         # Clean up any leftover PROCESSING tasks (just in case)
         for task in self.tasks:
@@ -341,14 +387,14 @@ class MainWindow(QMainWindow):
         failed_count = sum(1 for t in self.tasks if t.status == TaskStatus.FAILED)
         if failed_count > 0:
              self.btn_retry.setEnabled(True)
-             QMessageBox.warning(self, "Finished", f"Finished with {failed_count} errors. You can click 'Retry Failed'.")
+             QMessageBox.warning(self, self.i18n.t("done.title"), self.i18n.t("done.with_errors", count=failed_count))
         else:
-             QMessageBox.information(self, "Finished", "All translation tasks completed.")
+             QMessageBox.information(self, self.i18n.t("done.title"), self.i18n.t("done.all_ok"))
 
     def on_worker_error(self, error_msg):
         self.status_bar.showMessage(f"Error: {error_msg}")
         self.reset_ui_state()
-        QMessageBox.critical(self, "Error", str(error_msg))
+        QMessageBox.critical(self, self.i18n.t("err.app.title"), str(error_msg))
 
     def reset_ui_state(self):
         self.btn_start.setEnabled(True)
