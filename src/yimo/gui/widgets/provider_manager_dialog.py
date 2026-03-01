@@ -67,6 +67,12 @@ class ProviderEditorDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QDialogButtonBox.Ok)
+        if ok_btn is not None:
+            ok_btn.setProperty("variant", "primary")
+        cancel_btn = buttons.button(QDialogButtonBox.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setProperty("variant", "ghost")
         layout.addWidget(buttons)
 
     def _validate(self) -> None:
@@ -114,8 +120,11 @@ class ProviderManagerDialog(QDialog):
             self._providers = [ProviderConfig(name="default")]
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
         help_label = QLabel(self.i18n.t("pm.help"))
+        help_label.setProperty("role", "muted")
         layout.addWidget(help_label)
 
         self.table = QTableWidget()
@@ -140,6 +149,9 @@ class ProviderManagerDialog(QDialog):
         self.btn_add = QPushButton(self.i18n.t("pm.btn.add"))
         self.btn_edit = QPushButton(self.i18n.t("pm.btn.edit"))
         self.btn_remove = QPushButton(self.i18n.t("pm.btn.remove"))
+        self.btn_add.setProperty("variant", "primary")
+        self.btn_edit.setProperty("variant", "secondary")
+        self.btn_remove.setProperty("variant", "danger")
         btn_layout.addWidget(self.btn_add)
         btn_layout.addWidget(self.btn_edit)
         btn_layout.addWidget(self.btn_remove)
@@ -149,6 +161,12 @@ class ProviderManagerDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QDialogButtonBox.Ok)
+        if ok_btn is not None:
+            ok_btn.setProperty("variant", "primary")
+        cancel_btn = buttons.button(QDialogButtonBox.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setProperty("variant", "ghost")
         layout.addWidget(buttons)
 
         self.btn_add.clicked.connect(self.add_provider)

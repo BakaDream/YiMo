@@ -1,6 +1,4 @@
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QProgressBar, QLabel, QFrame
-)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QProgressBar, QLabel
 from PySide6.QtCore import Qt
 
 
@@ -9,21 +7,20 @@ class ProgressPanel(QWidget):
         super().__init__(parent)
         self._i18n = None
         self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(12)
         
         # Stats
         stats_layout = QHBoxLayout()
+        stats_layout.setContentsMargins(0, 0, 0, 0)
+        stats_layout.setSpacing(10)
         self.lbl_pending = QLabel("")
         self.lbl_success = QLabel("")
         self.lbl_failed = QLabel("")
         
-        # Style the labels
         for lbl in [self.lbl_pending, self.lbl_success, self.lbl_failed]:
-            lbl.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
+            lbl.setProperty("variant", "stat")
             lbl.setAlignment(Qt.AlignCenter)
-            # Make the text a bit bigger/bold for readability
-            font = lbl.font()
-            font.setBold(True)
-            lbl.setFont(font)
             stats_layout.addWidget(lbl)
             
         self.layout.addLayout(stats_layout)

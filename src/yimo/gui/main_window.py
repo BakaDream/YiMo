@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QPushButton, QMessageBox, QStatusBar, QToolBar, QSplitter, QFileDialog
+    QPushButton, QMessageBox, QStatusBar, QToolBar, QSplitter, QFileDialog, QFrame
 )
 from PySide6.QtCore import QThread, Signal, Slot, QObject, Qt, QEvent, QLocale
 from PySide6.QtGui import QAction, QCloseEvent
@@ -77,6 +77,8 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         self.main_layout = QVBoxLayout(central_widget)
+        self.main_layout.setContentsMargins(16, 16, 16, 16)
+        self.main_layout.setSpacing(12)
 
         # Toolbar
         self.setup_toolbar()
@@ -88,18 +90,41 @@ class MainWindow(QMainWindow):
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
         top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(12)
         
         self.file_selector = FileSelector()
         self.progress_panel = ProgressPanel()
+
+        file_card = QFrame()
+        file_card.setProperty("variant", "card")
+        file_card_layout = QVBoxLayout(file_card)
+        file_card_layout.setContentsMargins(16, 16, 16, 16)
+        file_card_layout.setSpacing(12)
+        file_card_layout.addWidget(self.file_selector)
+
+        action_card = QFrame()
+        action_card.setProperty("variant", "card")
+        action_card_layout = QVBoxLayout(action_card)
+        action_card_layout.setContentsMargins(16, 16, 16, 16)
+        action_card_layout.setSpacing(12)
+        action_card_layout.addWidget(self.progress_panel)
         
         # Buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(10)
         self.btn_scan = QPushButton("")
         self.btn_start = QPushButton("")
         self.btn_stop = QPushButton("")
         self.btn_retry = QPushButton("")
         self.btn_save = QPushButton("")
         self.btn_load = QPushButton("")
+
+        self.btn_start.setProperty("variant", "primary")
+        self.btn_stop.setProperty("variant", "danger")
+        self.btn_retry.setProperty("variant", "secondary")
+        for btn in [self.btn_scan, self.btn_save, self.btn_load]:
+            btn.setProperty("variant", "ghost")
         
         self.btn_start.setEnabled(False)
         self.btn_stop.setEnabled(False)
@@ -112,9 +137,10 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.btn_save)
         btn_layout.addWidget(self.btn_load)
         
-        top_layout.addWidget(self.file_selector)
-        top_layout.addWidget(self.progress_panel)
-        top_layout.addLayout(btn_layout)
+        action_card_layout.addLayout(btn_layout)
+
+        top_layout.addWidget(file_card)
+        top_layout.addWidget(action_card)
         
         # Bottom Panel (Task List)
         self.task_list = TaskListView()

@@ -131,6 +131,7 @@ class MessageDialog(QDialog):
         self.text_edit.setReadOnly(True)
         
         self.btn_close = QPushButton(self._i18n.t("task.msg.close") if self._i18n else "Close")
+        self.btn_close.setProperty("variant", "secondary")
         self.btn_close.clicked.connect(self.accept)
         
         layout.addWidget(self.text_edit)

@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFrame,
     QFormLayout,
     QHBoxLayout,
     QMessageBox,
@@ -52,6 +53,7 @@ class SettingsDialog(QDialog):
         provider_row_layout.addWidget(self.provider_combo, 1)
 
         self.btn_manage_providers = QPushButton(self.i18n.t("settings.manage_providers"))
+        self.btn_manage_providers.setProperty("variant", "secondary")
         self.btn_manage_providers.clicked.connect(self.open_provider_manager)
         provider_row_layout.addWidget(self.btn_manage_providers)
 
@@ -94,6 +96,7 @@ class SettingsDialog(QDialog):
         self.prompt_edit.setPlaceholderText(self.i18n.t("settings.prompt.placeholder"))
 
         self.btn_reset_prompt = QPushButton(self.i18n.t("settings.prompt.reset"))
+        self.btn_reset_prompt.setProperty("variant", "ghost")
         self.btn_reset_prompt.clicked.connect(self.reset_prompt)
 
         form_layout.addRow(self.i18n.t("settings.provider"), provider_row)
@@ -110,11 +113,24 @@ class SettingsDialog(QDialog):
         prompt_layout.addWidget(self.btn_reset_prompt)
         form_layout.addRow(self.i18n.t("settings.system_prompt"), prompt_container)
 
-        layout.addLayout(form_layout)
+        card = QFrame()
+        card.setProperty("variant", "card")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(12)
+        card_layout.addLayout(form_layout)
+
+        layout.addWidget(card)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QDialogButtonBox.Ok)
+        if ok_btn is not None:
+            ok_btn.setProperty("variant", "primary")
+        cancel_btn = buttons.button(QDialogButtonBox.Cancel)
+        if cancel_btn is not None:
+            cancel_btn.setProperty("variant", "ghost")
         layout.addWidget(buttons)
 
     def reset_prompt(self):
