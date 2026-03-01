@@ -1,0 +1,60 @@
+name: Build Binaries (PyInstaller)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows
+            arch: x86_64
+            runs_on: windows-latest
+            artifact_path: dist/pyinstaller/windows-x86_64/mkdocs-translate.exe
+          - os: macos
+            arch: x86_64
+            runs_on: macos-13
+            artifact_path: dist/pyinstaller/macos-x86_64/mkdocs-translate-macos-x86_64.zip
+          - os: macos
+            arch: arm64
+            runs_on: macos-14
+            artifact_path: dist/pyinstaller/macos-arm64/mkdocs-translate-macos-arm64.zip
+          - os: linux
+            arch: x86_64
+            runs_on: ubuntu-latest
+            artifact_path: dist/pyinstaller/linux-x86_64/mkdocs-translate
+
+    runs-on: ${{ matrix.runs_on }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Build (PyInstaller)
+        run: uv run --with pyinstaller --with pyinstaller-hooks-contrib python scripts/pyinstaller/build_onefile.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkdocs-translate-${{ matrix.os }}-${{ matrix.arch }}
+          path: ${{ matrix.artifact_path }}
