@@ -1,0 +1,217 @@
+/* YiMo - Light theme (modern minimal) */
+
+/* ---- Base ---- */
+QWidget {
+  color: #111827;
+}
+
+QMainWindow,
+QDialog {
+  background: #F6F7FB;
+}
+
+QToolTip {
+  background: #111827;
+  color: #FFFFFF;
+  border: 0px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+/* ---- Cards ---- */
+QFrame[variant="card"] {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+}
+
+/* ---- Typography helpers ---- */
+QLabel[role="muted"] {
+  color: #6B7280;
+}
+
+QLabel[variant="stat"] {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 600;
+}
+
+/* ---- Buttons ---- */
+QPushButton {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+QPushButton:hover {
+  background: #F9FAFB;
+  border-color: #CBD5E1;
+}
+
+QPushButton:pressed {
+  background: #F3F4F6;
+  border-color: #CBD5E1;
+}
+
+QPushButton:disabled {
+  background: #F3F4F6;
+  border-color: #E5E7EB;
+  color: #9CA3AF;
+}
+
+QPushButton[variant="primary"] {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+QPushButton[variant="primary"]:hover { background: #1D4ED8; border-color: #1D4ED8; }
+QPushButton[variant="primary"]:pressed { background: #1E40AF; border-color: #1E40AF; }
+
+QPushButton[variant="secondary"] {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  color: #111827;
+  font-weight: 600;
+}
+
+QPushButton[variant="danger"] {
+  background: #DC2626;
+  border-color: #DC2626;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+QPushButton[variant="danger"]:hover { background: #B91C1C; border-color: #B91C1C; }
+QPushButton[variant="danger"]:pressed { background: #991B1B; border-color: #991B1B; }
+
+QPushButton[variant="ghost"] {
+  background: transparent;
+  border-color: transparent;
+  color: #374151;
+}
+QPushButton[variant="ghost"]:hover { background: #EEF2FF; border-color: #EEF2FF; }
+QPushButton[variant="ghost"]:pressed { background: #E0E7FF; border-color: #E0E7FF; }
+
+/* ---- Inputs ---- */
+QLineEdit,
+QPlainTextEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 6px 8px;
+  selection-background-color: #DBEAFE;
+  selection-color: #111827;
+}
+
+QLineEdit:hover,
+QPlainTextEdit:hover,
+QComboBox:hover,
+QSpinBox:hover,
+QDoubleSpinBox:hover {
+  border-color: #CBD5E1;
+}
+
+QLineEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus {
+  border-color: #2563EB;
+}
+
+QComboBox::drop-down {
+  border: 0px;
+  width: 26px;
+}
+
+QComboBox::down-arrow {
+  width: 10px;
+  height: 10px;
+}
+
+/* ---- Tables ---- */
+QTableView,
+QTableWidget {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  gridline-color: #EEF2F7;
+  alternate-background-color: #F9FAFB;
+  selection-background-color: #DBEAFE;
+  selection-color: #111827;
+}
+
+QTableView::item,
+QTableWidget::item {
+  padding: 6px 8px;
+}
+
+QHeaderView::section {
+  background: #F3F4F6;
+  color: #374151;
+  padding: 8px 8px;
+  border: 0px;
+  border-bottom: 1px solid #E5E7EB;
+  font-weight: 600;
+}
+
+QTableCornerButton::section {
+  background: #F3F4F6;
+  border: 0px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+/* ---- Progress ---- */
+QProgressBar {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  background: #FFFFFF;
+  text-align: center;
+  height: 14px;
+}
+
+QProgressBar::chunk {
+  background: #2563EB;
+  border-radius: 7px;
+}
+
+/* ---- Menu / toolbar / status ---- */
+QToolBar {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 6px;
+  spacing: 8px;
+}
+
+QMenu {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 6px;
+}
+
+QMenu::item {
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+QMenu::item:selected {
+  background: #DBEAFE;
+}
+
+QStatusBar {
+  background: transparent;
+  color: #6B7280;
+}
+
+QSplitter::handle {
+  background: #E5E7EB;
+}
+
