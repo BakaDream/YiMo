@@ -22,6 +22,7 @@ dist/
 
 # App local config (contains secrets)
 .env
+yimo.yaml
 mkdocs-translate.yaml
 
 # MkDocs output (if used)

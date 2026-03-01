@@ -16,7 +16,7 @@ from yimo.utils.constants import (
 from yimo.utils.yaml_utils import dump_yaml, load_yaml
 
 
-DEFAULT_CONFIG_FILENAME = "mkdocs-translate.yaml"
+DEFAULT_CONFIG_FILENAME = "yimo.yaml"
 
 
 class ProviderConfig(BaseModel):

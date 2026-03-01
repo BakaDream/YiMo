@@ -1,10 +1,10 @@
-## mkdocs-translate
+## YiMo（译墨）
 
 一个基于 PySide6 的 GUI 工具，用于批量翻译（或复制资源文件）并保持目录结构。
 
 ### 配置文件
 
-应用配置使用项目目录下的 `mkdocs-translate.yaml`（包含 providers 与 API Key）。该文件已加入 `.gitignore`，不要提交到仓库。
+应用配置使用项目目录下的 `yimo.yaml`（包含 providers 与 API Key）。该文件已加入 `.gitignore`，不要提交到仓库。
 
 ### 本地运行
 
