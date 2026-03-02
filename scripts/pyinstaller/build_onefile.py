@@ -64,6 +64,19 @@ def main() -> int:
     data_sep = ";" if os_name == "windows" else ":"
     qss_src = repo_root / "src" / "yimo" / "gui" / "styles" / "light.qss"
     qss_dest = f"yimo{os.sep}gui{os.sep}styles"
+    icons_src_dir = repo_root / "src" / "yimo" / "icons"
+    icons_dest_dir = f"yimo{os.sep}icons"
+
+    icon_path: Path | None = None
+    if os_name == "windows":
+        candidate = icons_src_dir / "icon.ico"
+        icon_path = candidate if candidate.exists() else None
+    elif os_name == "macos":
+        candidate = icons_src_dir / "icon.icns"
+        icon_path = candidate if candidate.exists() else None
+    else:
+        candidate = icons_src_dir / "icon.png"
+        icon_path = candidate if candidate.exists() else None
 
     args: list[str] = [
         "--noconfirm",
@@ -83,11 +96,16 @@ def main() -> int:
         str(repo_root / "src"),
         "--add-data",
         f"{qss_src}{data_sep}{qss_dest}",
+        "--add-data",
+        f"{icons_src_dir}{data_sep}{icons_dest_dir}",
         "--collect-all",
         "PySide6",
         "--collect-all",
         "shiboken6",
     ]
+
+    if icon_path is not None:
+        args += ["--icon", str(icon_path)]
 
     if os_name == "windows":
         args.append("--noconsole")
