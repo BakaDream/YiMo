@@ -5,6 +5,7 @@ STRINGS: dict[str, str] = {
     # Main window / toolbar
     "main.toolbar": "主工具栏",
     "main.settings": "设置",
+    "main.language": "语言",
     "main.scan_files": "扫描文件",
     "main.start": "开始翻译",
     "main.stop": "停止",
@@ -12,6 +13,7 @@ STRINGS: dict[str, str] = {
     "main.save_project": "保存项目",
     "main.load_project": "加载项目",
     "main.status.settings_saved": "设置已保存",
+    "main.status.language_changed": "语言已切换。",
     "main.status.found_files": "找到 {count} 个待处理文件",
     "main.status.processing_finished": "处理完成",
     "main.status.stopping": "正在停止...",

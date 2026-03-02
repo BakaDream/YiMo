@@ -5,6 +5,7 @@ STRINGS: dict[str, str] = {
     # Main window / toolbar
     "main.toolbar": "Main Toolbar",
     "main.settings": "Settings",
+    "main.language": "Language",
     "main.scan_files": "Scan Files",
     "main.start": "Start Translation",
     "main.stop": "Stop",
@@ -12,6 +13,7 @@ STRINGS: dict[str, str] = {
     "main.save_project": "Save Project",
     "main.load_project": "Load Project",
     "main.status.settings_saved": "Settings saved",
+    "main.status.language_changed": "Language updated.",
     "main.status.found_files": "Found {count} files to process",
     "main.status.processing_finished": "Processing finished",
     "main.status.stopping": "Stopping...",

@@ -29,13 +29,6 @@ class SettingsDialog(QDialog):
         self.setWindowTitle(self.i18n.t("settings.title"))
         self.config = config
         self.resize(650, 720)
-        self._system_locale = None
-        try:
-            from PySide6.QtCore import QLocale
-
-            self._system_locale = QLocale.system().name()
-        except Exception:
-            self._system_locale = "en_US"
 
         self._providers_working = [p.model_copy(deep=True) for p in (config.providers or [])]
         if not self._providers_working:
@@ -58,19 +51,6 @@ class SettingsDialog(QDialog):
         provider_row_layout.addWidget(self.btn_manage_providers)
 
         self._refresh_provider_combo(preferred_active_name=config.active_provider)
-
-        # UI language
-        self.language_combo = QComboBox()
-        self.language_combo.addItem(self.i18n.t("settings.language.en"), "en")
-        self.language_combo.addItem(self.i18n.t("settings.language.zh_cn"), "zh_CN")
-
-        # Select: use config.ui_language if valid, otherwise pick by system locale
-        chosen = (self.config.ui_language or "").strip()
-        if chosen not in {"en", "zh_CN"}:
-            chosen = "zh_CN" if self._system_locale == "zh_CN" else "en"
-        idx = self.language_combo.findData(chosen)
-        if idx >= 0:
-            self.language_combo.setCurrentIndex(idx)
 
         # Global fields
         self.concurrency_spin = QSpinBox()
@@ -100,7 +80,6 @@ class SettingsDialog(QDialog):
         self.btn_reset_prompt.clicked.connect(self.reset_prompt)
 
         form_layout.addRow(self.i18n.t("settings.provider"), provider_row)
-        form_layout.addRow(self.i18n.t("settings.language"), self.language_combo)
         form_layout.addRow(self.i18n.t("settings.max_concurrency"), self.concurrency_spin)
         form_layout.addRow(self.i18n.t("settings.max_retries"), self.retries_spin)
         form_layout.addRow(self.i18n.t("settings.temperature"), self.temp_spin)
@@ -194,13 +173,9 @@ class SettingsDialog(QDialog):
         if not any(p.name == active_provider_name for p in self._providers_working):
             active_provider_name = self._providers_working[0].name
 
-        ui_language = self.language_combo.currentData()
-        if ui_language not in {"en", "zh_CN"}:
-            ui_language = "en"
-
         return AppConfig(
             active_provider=active_provider_name,
-            ui_language=ui_language,
+            ui_language=self.config.ui_language,
             providers=[p.model_copy(deep=True) for p in self._providers_working],
             max_concurrency=self.concurrency_spin.value(),
             max_retries=self.retries_spin.value(),

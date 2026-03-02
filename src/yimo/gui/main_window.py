@@ -3,10 +3,18 @@ import sys
 from pathlib import Path
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QPushButton, QMessageBox, QStatusBar, QToolBar, QSplitter, QFileDialog, QFrame
+    QPushButton,
+    QMessageBox,
+    QStatusBar,
+    QToolBar,
+    QToolButton,
+    QMenu,
+    QSplitter,
+    QFileDialog,
+    QFrame,
 )
-from PySide6.QtCore import QThread, Signal, Slot, QObject, Qt, QEvent, QLocale
-from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtCore import QThread, Signal, Slot, QObject, Qt, QEvent, QLocale, QSignalBlocker
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent
 
 from yimo.models.config import AppConfig
 from yimo.core.processor import Processor
@@ -184,6 +192,9 @@ class MainWindow(QMainWindow):
             self.toolbar.setWindowTitle(self.i18n.t("main.toolbar"))
         if getattr(self, "action_settings", None) is not None:
             self.action_settings.setText(self.i18n.t("main.settings"))
+        if getattr(self, "language_button", None) is not None:
+            self.language_button.setText(self.i18n.t("main.language"))
+            self._sync_language_menu()
 
         self.btn_scan.setText(self.i18n.t("main.scan_files"))
         self.btn_start.setText(self.i18n.t("main.start"))
@@ -224,6 +235,32 @@ class MainWindow(QMainWindow):
         self.action_settings.triggered.connect(self.open_settings)
         self.toolbar.addAction(self.action_settings)
 
+        self.language_menu = QMenu(self)
+        self.language_action_group = QActionGroup(self)
+        self.language_action_group.setExclusive(True)
+
+        self.action_lang_en = QAction("English", self)
+        self.action_lang_en.setData("en")
+        self.action_lang_en.setCheckable(True)
+        self.action_lang_en.triggered.connect(lambda _checked=False: self._set_ui_language("en"))
+        self.language_action_group.addAction(self.action_lang_en)
+        self.language_menu.addAction(self.action_lang_en)
+
+        self.action_lang_zh_cn = QAction("简体中文", self)
+        self.action_lang_zh_cn.setData("zh_CN")
+        self.action_lang_zh_cn.setCheckable(True)
+        self.action_lang_zh_cn.triggered.connect(lambda _checked=False: self._set_ui_language("zh_CN"))
+        self.language_action_group.addAction(self.action_lang_zh_cn)
+        self.language_menu.addAction(self.action_lang_zh_cn)
+
+        self.language_button = QToolButton(self)
+        self.language_button.setProperty("variant", "ghost")
+        self.language_button.setText(self.i18n.t("main.language"))
+        self.language_button.setPopupMode(QToolButton.InstantPopup)
+        self.language_button.setMenu(self.language_menu)
+        self.toolbar.addWidget(self.language_button)
+        self._sync_language_menu()
+
     def open_settings(self):
         dialog = SettingsDialog(self.config, self.i18n, self)
         if dialog.exec():
@@ -234,6 +271,27 @@ class MainWindow(QMainWindow):
             self.i18n.set_from_config(self.config, QLocale.system().name())
             self.apply_i18n()
             self.status_bar.showMessage(self.i18n.t("main.status.settings_saved"), 3000)
+
+    def _sync_language_menu(self) -> None:
+        current = self.i18n.language
+        actions = [getattr(self, "action_lang_en", None), getattr(self, "action_lang_zh_cn", None)]
+        for action in actions:
+            if action is None:
+                continue
+            with QSignalBlocker(action):
+                action.setChecked(action.data() == current)
+
+    def _set_ui_language(self, lang: str) -> None:
+        if lang not in {"en", "zh_CN"}:
+            lang = "en"
+
+        self.config.ui_language = lang
+        self.config.save()
+        self.processor.update_config(self.config)
+
+        self.i18n.set_from_config(self.config, QLocale.system().name())
+        self.apply_i18n()
+        self.status_bar.showMessage(self.i18n.t("main.status.language_changed"), 3000)
 
     def on_paths_changed(self):
         self.btn_start.setEnabled(False)

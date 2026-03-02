@@ -190,6 +190,32 @@ QToolBar {
   spacing: 8px;
 }
 
+QToolButton {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #374151;
+}
+
+QToolButton:hover {
+  background: #EEF2FF;
+  border-color: #EEF2FF;
+}
+
+QToolButton:pressed {
+  background: #E0E7FF;
+  border-color: #E0E7FF;
+}
+
+QToolButton:disabled {
+  color: #9CA3AF;
+}
+
+QToolButton::menu-indicator {
+  image: none;
+}
+
 QMenu {
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
@@ -214,4 +240,3 @@ QStatusBar {
 QSplitter::handle {
   background: #E5E7EB;
 }
-
