@@ -109,6 +109,10 @@ QDoubleSpinBox {
   selection-color: #111827;
 }
 
+QComboBox {
+  padding-right: 34px;
+}
+
 QLineEdit:hover,
 QPlainTextEdit:hover,
 QComboBox:hover,
@@ -127,12 +131,43 @@ QDoubleSpinBox:focus {
 
 QComboBox::drop-down {
   border: 0px;
-  width: 26px;
+  width: 30px;
+  border-left: 1px solid #E5E7EB;
 }
 
 QComboBox::down-arrow {
-  width: 10px;
-  height: 10px;
+  image: url("{CHEVRON_DOWN}");
+  width: 14px;
+  height: 14px;
+}
+
+QComboBox QLineEdit {
+  background: transparent;
+  border: 0px;
+  padding: 0px;
+}
+
+QComboBox QAbstractItemView {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  selection-background-color: #DBEAFE;
+  selection-color: #111827;
+  padding: 6px;
+  outline: 0;
+}
+
+QComboBox[variant="lang"] {
+  background: #F9FAFB;
+  border-color: #CBD5E1;
+}
+
+QComboBox[variant="lang"]:hover {
+  border-color: #94A3B8;
+}
+
+QComboBox[variant="lang"]:focus {
+  border-color: #2563EB;
 }
 
 /* ---- Tables ---- */

@@ -176,6 +176,8 @@ class SettingsDialog(QDialog):
         return AppConfig(
             active_provider=active_provider_name,
             ui_language=self.config.ui_language,
+            source_language=getattr(self.config, "source_language", "English"),
+            target_language=getattr(self.config, "target_language", "简体中文"),
             providers=[p.model_copy(deep=True) for p in self._providers_working],
             max_concurrency=self.concurrency_spin.value(),
             max_retries=self.retries_spin.value(),

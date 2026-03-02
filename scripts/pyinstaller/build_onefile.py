@@ -63,6 +63,7 @@ def main() -> int:
     mode_flag = "--onedir" if os_name == "macos" else "--onefile"
     data_sep = ";" if os_name == "windows" else ":"
     qss_src = repo_root / "src" / "yimo" / "gui" / "styles" / "light.qss"
+    chevron_src = repo_root / "src" / "yimo" / "gui" / "styles" / "chevron-down.svg"
     qss_dest = f"yimo{os.sep}gui{os.sep}styles"
     icons_src_dir = repo_root / "src" / "yimo" / "icons"
     icons_dest_dir = f"yimo{os.sep}icons"
@@ -123,6 +124,8 @@ def main() -> int:
         str(repo_root / "src"),
         "--add-data",
         f"{qss_src}{data_sep}{qss_dest}",
+        "--add-data",
+        f"{chevron_src}{data_sep}{qss_dest}",
         "--add-data",
         f"{icons_src_dir}{data_sep}{icons_dest_dir}",
     ]

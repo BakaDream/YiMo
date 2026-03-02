@@ -34,6 +34,8 @@ class AppConfig(BaseModel):
 
     active_provider: str = Field(default="default", description="Active provider name")
     ui_language: str | None = Field(default=None, description="UI language: en or zh_CN; if missing, use system language")
+    source_language: str = Field(default="English", exclude=True, description="Runtime-only source language for prompt placeholders; not written to yimo.yaml")
+    target_language: str = Field(default="简体中文", exclude=True, description="Runtime-only target language for prompt placeholders; not written to yimo.yaml")
     providers: List[ProviderConfig] = Field(
         default_factory=lambda: [
             ProviderConfig(

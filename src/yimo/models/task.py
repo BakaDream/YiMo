@@ -53,6 +53,8 @@ class ProjectState(BaseModel):
     source_dir: Path
     dest_dir: Path
     tasks: List[TranslationTask]
+    source_language: str = "English"
+    target_language: str = "简体中文"
 
     def save_to_file(self, path: Path):
         dump_yaml(Path(path), self.model_dump(mode="json"))

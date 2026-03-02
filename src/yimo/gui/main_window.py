@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+    QLabel,
+    QComboBox,
     QPushButton,
     QMessageBox,
     QStatusBar,
@@ -24,6 +26,19 @@ from yimo.gui.widgets.progress_panel import ProgressPanel
 from yimo.gui.widgets.settings_dialog import SettingsDialog
 from yimo.gui.widgets.task_list import TaskListView
 from yimo.i18n.manager import I18nManager
+
+
+_BUILTIN_LANGUAGES: list[str] = [
+    "English",
+    "简体中文",
+    "繁體中文",
+    "日本語",
+    "한국어",
+    "Français",
+    "Deutsch",
+    "Español",
+]
+
 
 class WorkerSignals(QObject):
     progress = Signal(object) # TranslationTask
@@ -116,6 +131,33 @@ class MainWindow(QMainWindow):
         action_card_layout.setContentsMargins(16, 16, 16, 16)
         action_card_layout.setSpacing(12)
         action_card_layout.addWidget(self.progress_panel)
+
+        # Translation languages row (runtime only; saved with project progress file)
+        lang_row = QWidget()
+        lang_row_layout = QHBoxLayout(lang_row)
+        lang_row_layout.setContentsMargins(0, 0, 0, 0)
+        lang_row_layout.setSpacing(10)
+
+        self.source_language_label = QLabel("")
+        self.source_language_combo = QComboBox()
+        self.source_language_combo.setEditable(True)
+        self.source_language_combo.setMinimumWidth(180)
+        self.source_language_combo.setProperty("variant", "lang")
+
+        self.target_language_label = QLabel("")
+        self.target_language_combo = QComboBox()
+        self.target_language_combo.setEditable(True)
+        self.target_language_combo.setMinimumWidth(180)
+        self.target_language_combo.setProperty("variant", "lang")
+
+        lang_row_layout.addWidget(self.source_language_label)
+        lang_row_layout.addWidget(self.source_language_combo)
+        lang_row_layout.addSpacing(12)
+        lang_row_layout.addWidget(self.target_language_label)
+        lang_row_layout.addWidget(self.target_language_combo)
+        lang_row_layout.addStretch(1)
+
+        action_card_layout.addWidget(lang_row)
         
         # Buttons
         btn_layout = QHBoxLayout()
@@ -177,8 +219,18 @@ class MainWindow(QMainWindow):
         self.btn_load.clicked.connect(self.load_project)
         self.file_selector.paths_changed.connect(self.on_paths_changed)
 
+        self._init_translation_language_controls()
+
         # Initial translations
         self.apply_i18n()
+
+        # Signals: commit translation languages
+        self.source_language_combo.currentIndexChanged.connect(self._commit_source_language_from_selection)
+        self.target_language_combo.currentIndexChanged.connect(self._commit_target_language_from_selection)
+        if self.source_language_combo.lineEdit() is not None:
+            self.source_language_combo.lineEdit().editingFinished.connect(self._commit_source_language_from_text)
+        if self.target_language_combo.lineEdit() is not None:
+            self.target_language_combo.lineEdit().editingFinished.connect(self._commit_target_language_from_text)
 
     def apply_i18n(self) -> None:
         self.retranslate_ui()
@@ -195,6 +247,14 @@ class MainWindow(QMainWindow):
         if getattr(self, "language_button", None) is not None:
             self.language_button.setText(self.i18n.t("main.language"))
             self._sync_language_menu()
+
+        if getattr(self, "source_language_label", None) is not None:
+            self.source_language_label.setText(self.i18n.t("main.source_language"))
+        if getattr(self, "target_language_label", None) is not None:
+            self.target_language_label.setText(self.i18n.t("main.target_language"))
+
+        # Keep auto label translated, but actual stored value remains "auto".
+        self._refresh_translation_language_combo_texts()
 
         self.btn_scan.setText(self.i18n.t("main.scan_files"))
         self.btn_start.setText(self.i18n.t("main.start"))
@@ -293,6 +353,96 @@ class MainWindow(QMainWindow):
         self.apply_i18n()
         self.status_bar.showMessage(self.i18n.t("main.status.language_changed"), 3000)
 
+    def _init_translation_language_controls(self) -> None:
+        # Defaults (runtime only).
+        if not getattr(self.config, "source_language", None):
+            self.config.source_language = "English"
+        if not getattr(self.config, "target_language", None):
+            self.config.target_language = "简体中文"
+
+        with QSignalBlocker(self.source_language_combo), QSignalBlocker(self.target_language_combo):
+            self.source_language_combo.clear()
+            # i18n text for auto, fixed data="auto"
+            self.source_language_combo.addItem(self.i18n.t("main.lang.auto"), "auto")
+            for lang in _BUILTIN_LANGUAGES:
+                self.source_language_combo.addItem(lang, lang)
+
+            self.target_language_combo.clear()
+            for lang in _BUILTIN_LANGUAGES:
+                self.target_language_combo.addItem(lang, lang)
+
+            self._set_combo_to_value(self.source_language_combo, self.config.source_language)
+            self._set_combo_to_value(self.target_language_combo, self.config.target_language)
+
+    def _refresh_translation_language_combo_texts(self) -> None:
+        # Update only the displayed label for auto, keep data the same.
+        try:
+            idx = self.source_language_combo.findData("auto")
+            if idx >= 0:
+                self.source_language_combo.setItemText(idx, self.i18n.t("main.lang.auto"))
+        except Exception:
+            pass
+
+    @staticmethod
+    def _set_combo_to_value(combo: QComboBox, value: str) -> None:
+        v = (value or "").strip()
+        if not v:
+            return
+        idx = combo.findData(v)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+        else:
+            combo.setCurrentIndex(-1)
+            combo.setEditText(v)
+
+    @staticmethod
+    def _combo_value(combo: QComboBox) -> str:
+        if combo.currentIndex() >= 0:
+            data = combo.currentData()
+            if isinstance(data, str) and data.strip():
+                return data.strip()
+        return combo.currentText().strip()
+
+    def _set_translation_language_controls_enabled(self, enabled: bool) -> None:
+        self.source_language_combo.setEnabled(enabled)
+        self.target_language_combo.setEnabled(enabled)
+
+    def _commit_source_language(self, value: str) -> None:
+        v = (value or "").strip() or "English"
+        # Only allow auto as the reserved token.
+        if v.lower() == "auto":
+            v = "auto"
+        self.config.source_language = v
+        self.processor.update_config(self.config)
+
+    def _commit_target_language(self, value: str) -> None:
+        v = (value or "").strip() or "简体中文"
+        # Target language should never be auto; coerce to default.
+        if v.lower() == "auto":
+            v = "简体中文"
+        self.config.target_language = v
+        self.processor.update_config(self.config)
+
+    def _commit_source_language_from_selection(self, _index: int) -> None:
+        v = self._combo_value(self.source_language_combo)
+        if v:
+            self._commit_source_language(v)
+
+    def _commit_target_language_from_selection(self, _index: int) -> None:
+        v = self._combo_value(self.target_language_combo)
+        if v:
+            self._commit_target_language(v)
+
+    def _commit_source_language_from_text(self) -> None:
+        v = self.source_language_combo.currentText().strip()
+        if v:
+            self._commit_source_language(v)
+
+    def _commit_target_language_from_text(self) -> None:
+        v = self.target_language_combo.currentText().strip()
+        if v:
+            self._commit_target_language(v)
+
     def on_paths_changed(self):
         self.btn_start.setEnabled(False)
         self.tasks = []
@@ -334,6 +484,7 @@ class MainWindow(QMainWindow):
         self.file_selector.setEnabled(False)
         self.btn_retry.setEnabled(False)
         self.btn_load.setEnabled(False)
+        self._set_translation_language_controls_enabled(False)
         
         self.worker = TranslationWorker(self.processor, self.tasks)
         self.worker.signals.progress.connect(self.on_worker_progress)
@@ -376,7 +527,13 @@ class MainWindow(QMainWindow):
         try:
             src = Path(self.file_selector.src_edit.text())
             dest = Path(self.file_selector.dest_edit.text())
-            project = ProjectState(source_dir=src, dest_dir=dest, tasks=self.tasks)
+            project = ProjectState(
+                source_dir=src,
+                dest_dir=dest,
+                tasks=self.tasks,
+                source_language=getattr(self.config, "source_language", "English"),
+                target_language=getattr(self.config, "target_language", "简体中文"),
+            )
             project.save_to_file(Path(path))
             self.status_bar.showMessage(self.i18n.t("main.status.project_saved", path=path))
         except Exception as e:
@@ -396,6 +553,14 @@ class MainWindow(QMainWindow):
             project = ProjectState.load_from_file(Path(path))
             self.file_selector.src_edit.setText(str(project.source_dir))
             self.file_selector.dest_edit.setText(str(project.dest_dir))
+
+            # Restore translation languages (runtime only)
+            self.config.source_language = getattr(project, "source_language", "English")
+            self.config.target_language = getattr(project, "target_language", "简体中文")
+            with QSignalBlocker(self.source_language_combo), QSignalBlocker(self.target_language_combo):
+                self._set_combo_to_value(self.source_language_combo, self.config.source_language)
+                self._set_combo_to_value(self.target_language_combo, self.config.target_language)
+            self.processor.update_config(self.config)
             
             self.tasks = project.tasks
             
@@ -437,6 +602,7 @@ class MainWindow(QMainWindow):
             failed = sum(1 for t in self.tasks if t.status == TaskStatus.FAILED)
             pending = sum(1 for t in self.tasks if t.status == TaskStatus.PENDING)
             self.progress_panel.update_progress(pending, completed, failed, len(self.tasks), self.i18n.t("progress.stopped"))
+            self._set_translation_language_controls_enabled(True)
 
     def on_worker_progress(self, task: TranslationTask):
         completed = sum(1 for t in self.tasks if t.status == TaskStatus.COMPLETED)
@@ -487,6 +653,7 @@ class MainWindow(QMainWindow):
         self.file_selector.setEnabled(True)
         self.worker = None
         self.btn_load.setEnabled(True)
+        self._set_translation_language_controls_enabled(True)
         
         # Check if we should enable retry
         if any(t.status == TaskStatus.FAILED for t in self.tasks):

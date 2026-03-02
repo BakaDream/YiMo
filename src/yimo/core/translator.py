@@ -2,6 +2,13 @@ import asyncio
 from openai import AsyncOpenAI
 from yimo.models.config import AppConfig
 
+
+def render_system_prompt(template: str, source_language: str, target_language: str) -> str:
+    source = (source_language or "").strip() or "English"
+    target = (target_language or "").strip() or "简体中文"
+    return template.replace("{current_language}", source).replace("{target_language}", target)
+
+
 class Translator:
     def __init__(self, config: AppConfig):
         self.config = config
@@ -31,7 +38,11 @@ class Translator:
             return ""
 
         # Use system prompt from config, or fallback if empty (though config has default)
-        system_prompt = self.config.system_prompt
+        system_prompt = render_system_prompt(
+            self.config.system_prompt,
+            getattr(self.config, "source_language", "English"),
+            getattr(self.config, "target_language", "简体中文"),
+        )
         
         try:
             provider = self.config.get_active_provider()
