@@ -4,6 +4,13 @@ version = "0.1.0"
 description = "YiMo（译墨）- A GUI tool for translating documentation with LLM providers"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { file = "LICENSE" }
+keywords = ["translation", "markdown", "pyside6", "gui", "llm"]
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "PySide6>=6.6.0",
     "openai>=1.0.0",
@@ -11,6 +18,10 @@ dependencies = [
     "pydantic>=2.0.0",
     "PyYAML>=6.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/BakaDream/YiMo"
+Issues = "https://github.com/BakaDream/YiMo/issues"
 
 [project.scripts]
 yimo = "yimo.app:main"
