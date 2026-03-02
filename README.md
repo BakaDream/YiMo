@@ -42,3 +42,22 @@ GitHub-hosted runner 产物矩阵：
 - macOS arm64（`macos-14`）
 
 运行完成后会在 Actions 的 artifacts 中看到对应平台的打包产物。
+
+### Nuitka 打包（本机）
+
+仓库提供统一脚本：`scripts/nuitka/build.py`
+
+```bash
+uv sync --locked
+uv run --with nuitka --with zstandard --with ordered-set python scripts/nuitka/build.py
+```
+
+输出目录：`dist/nuitka/<os>-<arch>/`
+
+- Windows：`dist/nuitka/windows-x86_64/yimo.exe`
+- Linux：`dist/nuitka/linux-x86_64/yimo`
+- macOS：`dist/nuitka/macos-arm64/yimo-macos-arm64.zip`（zip 内为 `YiMo.app`）
+
+### GitHub Actions（Nuitka）多平台打包
+
+workflow：`.github/workflows/build-binaries-nuitka.yml`（`workflow_dispatch` 手动触发）
