@@ -3,8 +3,9 @@
 <div align="center">
   <img src="src/yimo/icons/none-background.svg" width="120" alt="YiMo logo" />
   <h1>YiMo（译墨）</h1>
-  <p>一个基于 <b>PySide6</b> 的桌面 GUI 工具：批量翻译文档（主要是 Markdown），并在输出侧<b>保持原目录结构</b>与<b>语法结构</b>。</p>
-  <p>YiMo is a desktop GUI app for translating docs while preserving structure.</p>
+  <p>一个基于 <b>PySide6</b> 的桌面 GUI 工具：批量翻译 <b>Markdown 文档</b>，并在输出侧<b>保持原目录结构</b>与<b>语法结构</b>。</p>
+  <p>例如：你可以用它翻译基于 Markdown 的站点/文档工程，如 <b>MkDocs</b> / <b>VitePress</b> / <b>Hexo</b> / <b>Hugo</b> 等。</p>
+  <p>YiMo translates Markdown docs (MkDocs/VitePress/Hexo/Hugo) while preserving structure.</p>
   <p>
     <a href="https://github.com/BakaDream/YiMo/releases"><img alt="Release" src="https://img.shields.io/github/v/release/BakaDream/YiMo?style=flat-square" /></a>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/BakaDream/YiMo?style=flat-square" /></a>
@@ -12,16 +13,6 @@
   </p>
   <p>简体中文 | <a href="README.en.md">English</a></p>
 </div>
-
-## 适合谁 / 不适合谁
-
-适合：
-- 需要把一整个文档目录（含图片/静态资源）翻译成另一种语言的人/团队
-- 希望输出仍可直接用于 MkDocs / VitePress / Hugo / Hexo 等站点构建的人
-- 使用 OpenAI-compatible Providers（`base_url`/`api_key`/`model`）的人
-
-不适合：
-- 需要“机器翻译式逐字对齐/术语库强控”的场景（YiMo 更偏工作流与结构稳定）
 
 ## 核心价值
 
@@ -146,4 +137,3 @@ uv run python -m unittest discover -s tests
 
 ### 为什么 `yimo.yaml` 不应提交？
 它包含 `api_key` 等敏感信息。即使你删除提交，历史记录也可能泄露。
-
