@@ -48,6 +48,56 @@ uv run yimo
 uv run python main.py
 ```
 
+## Settings 配置指南（重点）
+
+YiMo 的大部分“设计点”（供应商/限流/模式/提示词/Front Matter 等）都集中在 **Settings** 里完成。配置会写入项目目录的 `yimo.yaml`。
+
+### 1) Provider（供应商 / OpenAI-compatible）
+
+在 **Settings → Providers** 中可以新增/编辑/删除 Provider，并选择一个作为当前启用的 Provider。
+
+每个 Provider 包含：
+- `name`：Provider 名称（用于在列表中选择）
+- `base_url`：OpenAI-compatible Base URL（例如 `https://api.openai.com/v1`，或自建/第三方兼容地址）
+- `api_key`：密钥（注意保密）
+- `model`：模型名称
+- `rpm_limit`：Requests Per Minute（请求/分钟）的软限流
+  - `<= 0` 表示不限制
+  - YiMo 会按该值做节流，避免短时间内打爆 provider 的限额
+
+### 2) Translation（翻译策略）
+
+在 **Settings → Translation** 中可以配置：
+
+- **Translation mode**：
+  - `raw_markdown`：更直接、容错更高
+  - `structured_graph`：更强调结构稳定（基于 LangGraph，并通过 LangChain `with_structured_output()` 做结构化输出；失败会进入 repair 重试）
+- **Max concurrency / Max retries / Timeout / Temperature**：
+  - 并发、失败重试次数、请求超时、采样温度等通用参数
+- **System Prompt（两套）**：
+  - `raw_system_prompt`：用于 `raw_markdown`
+  - `structured_system_prompt`：用于 `structured_graph`
+  - 两者都支持占位符：`{current_language}`、`{target_language}`
+
+### 3) Front Matter（要翻译哪些字段）
+
+在 **Settings → Translation**（或对应的 Front Matter 区域）中可以控制 Front Matter 的翻译范围：
+
+- **常用字段（checkbox）**：`title` / `tags`（默认）
+- **自定义字段**：通过逗号分隔填写（支持 `a.b.c` 这种嵌套路径）
+- **禁止翻译字段（denylist）**：例如 `slug` / `url` / `permalink` / `date` / `draft` 等（用于避免破坏路由/发布时间/构建配置）
+
+建议：只翻译展示性字段（如标题、摘要、标签），避免翻译构建/路由相关字段。
+
+### 4) Markdown（细粒度开关）
+
+在 **Settings → Markdown** 中可以配置：
+- 是否翻译链接文本：`[text](url)` 的 `text`（URL 保持不变）
+- 是否翻译图片 alt：`![alt](src)` 的 `alt`
+- 代码样式短行跳过阈值：用于减少把代码/命令行误翻译的概率
+
+> 安全提醒：`yimo.yaml` **包含 `api_key`**，请勿提交到仓库或分享给他人。
+
 ## 关键概念（v0.2+）
 
 ### 翻译模式

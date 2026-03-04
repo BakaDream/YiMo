@@ -57,6 +57,55 @@ Or:
 uv run python main.py
 ```
 
+## Settings guide (important)
+
+Most of YiMo’s “design knobs” (providers, rate limit, modes, prompts, Front Matter rules) are configured in **Settings**. The configuration is stored in `yimo.yaml` in your project folder.
+
+### 1) Provider (OpenAI-compatible)
+
+In **Settings → Providers**, you can add/edit/remove providers and choose the active one.
+
+Each provider includes:
+- `name`: provider display name
+- `base_url`: OpenAI-compatible Base URL (e.g. `https://api.openai.com/v1`)
+- `api_key`: secret key (keep it private)
+- `model`: model name
+- `rpm_limit`: requests-per-minute soft throttling
+  - `<= 0` means unlimited
+  - YiMo uses it to avoid hitting provider rate limits too aggressively
+
+### 2) Translation (strategy)
+
+In **Settings → Translation**, you can configure:
+
+- **Translation mode**
+  - `raw_markdown`: simpler and more tolerant
+  - `structured_graph`: prioritizes structure stability (LangGraph + LangChain `with_structured_output()`; failures trigger repair retries)
+- **Max concurrency / Max retries / Timeout / Temperature**
+- **Two system prompts**
+  - `raw_system_prompt` for `raw_markdown`
+  - `structured_system_prompt` for `structured_graph`
+  - Placeholders: `{current_language}` and `{target_language}`
+
+### 3) Front Matter (what to translate)
+
+In the Front Matter settings area you can control what keys are translated:
+
+- Common keys (checkboxes): `title` / `tags` (defaults)
+- Custom keys: comma-separated, supports nested paths like `a.b.c`
+- Denylist keys: keys that should never be translated (e.g. `slug`, `url`, `permalink`, `date`, `draft`)
+
+Tip: translate display-only fields (title/tags/summary) and avoid routing/build-related keys.
+
+### 4) Markdown (fine-grained toggles)
+
+In **Settings → Markdown**:
+- Translate link text in `[text](url)` (URL stays unchanged)
+- Translate image alt in `![alt](src)`
+- Code-like short line threshold to reduce accidental translation of code/commands
+
+Security note: `yimo.yaml` contains your `api_key`. Do not commit or share it.
+
 ## Concepts (v0.2+)
 
 ### Translation modes
@@ -113,4 +162,3 @@ uv run python -m unittest discover -s tests
 ## License
 
 GPL-3.0-only. See `LICENSE`.
-
