@@ -59,7 +59,12 @@ uv run python main.py
 
 ## Settings guide (important)
 
-Most of YiMo’s “design knobs” (providers, rate limit, modes, prompts, Front Matter rules) are configured in **Settings**. The configuration is stored in `yimo.yaml` in your project folder.
+Most of YiMo’s “design knobs” (providers, rate limit, modes, prompts, Front Matter rules) are configured in **Settings**.
+
+- **Global config**: stored in `yimo.yaml` under YiMo’s current working directory
+  - When running from source: usually the directory where you run `uv run yimo`
+  - When launching packaged binaries: the working directory depends on OS/launcher (commonly the app folder or a system default)
+- **Project progress file**: saved/restored via **Save Project / Load Project** (you choose the path). It contains task list/status + source/target language + translation mode, but **does not include** providers/API keys/prompts
 
 ### 1) Provider (OpenAI-compatible)
 
@@ -82,6 +87,10 @@ In **Settings → Translation**, you can configure:
   - `raw_markdown`: simpler and more tolerant
   - `structured_graph`: prioritizes structure stability (LangGraph + LangChain `with_structured_output()`; failures trigger repair retries)
 - **Max concurrency / Max retries / Timeout / Temperature**
+- **structured_graph tuning** (structured mode only)
+  - `structured_chunk_tokens`: max tokens per batch payload
+  - `structured_memory_max_tokens`: token budget for injected memory (summary/glossary)
+  - `structured_max_repair_attempts`: repair retries when structured output validation fails
 - **Two system prompts**
   - `raw_system_prompt` for `raw_markdown`
   - `structured_system_prompt` for `structured_graph`
@@ -89,22 +98,28 @@ In **Settings → Translation**, you can configure:
 
 ### 3) Front Matter (what to translate)
 
-In the Front Matter settings area you can control what keys are translated:
+In **Settings → Markdown**, you can control what Front Matter keys are translated (**effective in `structured_graph` mode only**; `raw_markdown` relies on prompt instructions and cannot do key-level selection reliably):
 
-- Common keys (checkboxes): `title` / `tags` (defaults)
+- Common keys (checkboxes): `title` / `tags` / `description` / `summary` / `categories`
 - Custom keys: comma-separated, supports nested paths like `a.b.c`
-- Denylist keys: keys that should never be translated (e.g. `slug`, `url`, `permalink`, `date`, `draft`)
+- Denylist keys: keys that are never translated for safety (e.g. `slug`, `url`, `permalink`, `date`, `draft`). You can adjust via `front_matter_denylist_keys` in `yimo.yaml` if needed.
 
 Tip: translate display-only fields (title/tags/summary) and avoid routing/build-related keys.
 
-### 4) Markdown (fine-grained toggles)
+### 4) Advanced (fine-grained toggles)
 
-In **Settings → Markdown**:
+In **Settings → Advanced**:
 - Translate link text in `[text](url)` (URL stays unchanged)
-- Translate image alt in `![alt](src)`
-- Code-like short line threshold to reduce accidental translation of code/commands
+- Translate image alt in `![alt](src)` (currently `structured_graph` protects the whole image syntax and won’t translate alt; this toggle is reserved for future enhancements)
+- Code-like short line threshold to reduce accidental translation of commands/params (used by the structured segmenter)
 
 Security note: `yimo.yaml` contains your `api_key`. Do not commit or share it.
+
+## File types & scanning rules
+
+- **Translated**: `.md` / `.markdown`
+- **Copied as resources**: `.png` `.jpg` `.jpeg` `.gif` `.svg` `.webp` `.css` `.js` `.json` `.pdf` `.ico` `.woff` `.ttf`
+- **Ignored directories**: `.git`, `__pycache__`, `node_modules`, `.venv`, `.idea`, `.vscode`, `site`
 
 ## Concepts (v0.2+)
 
@@ -127,7 +142,7 @@ Placeholders are supported:
 
 ### Config file: `yimo.yaml`
 
-YiMo writes `yimo.yaml` in your project folder (including providers and API keys). You typically edit it via the GUI Settings.
+YiMo reads/writes `yimo.yaml` in its current working directory (including providers and API keys). You typically edit it via the GUI Settings.
 
 Security note:
 - `yimo.yaml` contains secrets. Do not commit or share it.

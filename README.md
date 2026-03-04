@@ -50,7 +50,12 @@ uv run python main.py
 
 ## Settings 配置指南（重点）
 
-YiMo 的大部分“设计点”（供应商/限流/模式/提示词/Front Matter 等）都集中在 **Settings** 里完成。配置会写入项目目录的 `yimo.yaml`。
+YiMo 的大部分“设计点”（供应商/限流/模式/提示词/Front Matter 等）都集中在 **Settings** 里完成。
+
+- **全局配置文件**：默认读写启动程序时的工作目录下的 `yimo.yaml`
+  - 从源码运行：通常就是你当前终端所在目录
+  - 从已打包的二进制启动：不同平台/启动方式的“工作目录”可能不同（常见是应用所在目录或系统默认目录）
+- **项目进度文件**：通过 **Save Project / Load Project** 保存/恢复（你自行选择保存路径），包含任务列表/状态，以及 Source/Target language 与 Translation mode；**不包含** Provider / API Key / Prompt 等全局设置
 
 ### 1) Provider（供应商 / OpenAI-compatible）
 
@@ -74,6 +79,10 @@ YiMo 的大部分“设计点”（供应商/限流/模式/提示词/Front Matte
   - `structured_graph`：更强调结构稳定（基于 LangGraph，并通过 LangChain `with_structured_output()` 做结构化输出；失败会进入 repair 重试）
 - **Max concurrency / Max retries / Timeout / Temperature**：
   - 并发、失败重试次数、请求超时、采样温度等通用参数
+- **structured_graph 调参**（仅结构化模式生效）：
+  - `structured_chunk_tokens`：每批 payload 的 token 上限（越大越“整段”，越小越“细分”）
+  - `structured_memory_max_tokens`：结构化“记忆”（summary/glossary）注入 prompt 的 token 上限
+  - `structured_max_repair_attempts`：结构化输出校验失败时的修复重试次数
 - **System Prompt（两套）**：
   - `raw_system_prompt`：用于 `raw_markdown`
   - `structured_system_prompt`：用于 `structured_graph`
@@ -81,22 +90,28 @@ YiMo 的大部分“设计点”（供应商/限流/模式/提示词/Front Matte
 
 ### 3) Front Matter（要翻译哪些字段）
 
-在 **Settings → Translation**（或对应的 Front Matter 区域）中可以控制 Front Matter 的翻译范围：
+在 **Settings → Markdown** 的 Front Matter 区域中可以控制 Front Matter 的翻译范围（**仅 `structured_graph` 模式生效**；`raw_markdown` 只靠提示词约束，无法做字段级别的“精确选择”）：
 
-- **常用字段（checkbox）**：`title` / `tags`（默认）
+- **常用字段（checkbox）**：`title` / `tags` / `description` / `summary` / `categories`
 - **自定义字段**：通过逗号分隔填写（支持 `a.b.c` 这种嵌套路径）
-- **禁止翻译字段（denylist）**：例如 `slug` / `url` / `permalink` / `date` / `draft` 等（用于避免破坏路由/发布时间/构建配置）
+- **禁止翻译字段（denylist）**：出于安全原因，`slug` / `url` / `permalink` / `date` / `draft` 等字段默认永不翻译；如需调整可手动编辑 `yimo.yaml` 的 `front_matter_denylist_keys`
 
 建议：只翻译展示性字段（如标题、摘要、标签），避免翻译构建/路由相关字段。
 
-### 4) Markdown（细粒度开关）
+### 4) Advanced（细粒度开关）
 
-在 **Settings → Markdown** 中可以配置：
+在 **Settings → Advanced** 中可以配置：
 - 是否翻译链接文本：`[text](url)` 的 `text`（URL 保持不变）
-- 是否翻译图片 alt：`![alt](src)` 的 `alt`
-- 代码样式短行跳过阈值：用于减少把代码/命令行误翻译的概率
+- 是否翻译图片 alt：`![alt](src)` 的 `alt`（目前 `structured_graph` 会保护整段图片语法，默认不会翻译 alt；该开关主要为后续增强预留）
+- “代码味短行”跳过阈值：用于减少把命令行/参数行误翻译的概率（结构化模式的分段器会用到）
 
 > 安全提醒：`yimo.yaml` **包含 `api_key`**，请勿提交到仓库或分享给他人。
+
+## 支持的文件与扫描规则
+
+- **会翻译的文件**：`.md` / `.markdown`
+- **会复制的资源文件**：`.png` `.jpg` `.jpeg` `.gif` `.svg` `.webp` `.css` `.js` `.json` `.pdf` `.ico` `.woff` `.ttf`
+- **会忽略的目录**：`.git` / `__pycache__` / `node_modules` / `.venv` / `.idea` / `.vscode` / `site`
 
 ## 关键概念（v0.2+）
 
@@ -119,7 +134,7 @@ System Prompt 仍支持占位符：
 
 ### 配置文件 `yimo.yaml`
 
-应用会在项目目录写入 `yimo.yaml`（包含 providers 与 API Key 等）。你一般不需要手写，推荐在 GUI 的 Settings 里完成。
+应用会在**启动时的工作目录**读写 `yimo.yaml`（包含 providers 与 API Key 等）。你一般不需要手写，推荐在 GUI 的 Settings 里完成。
 
 安全提醒：
 - `yimo.yaml` **包含密钥**，不要提交到仓库、不要分享给他人
@@ -184,6 +199,3 @@ uv run python -m unittest discover -s tests
 
 ### macOS 提示“无法打开/来自身份不明开发者”
 这是 macOS Gatekeeper 的常见提示。你可以在「系统设置 → 隐私与安全性」中允许打开。
-
-### 为什么 `yimo.yaml` 不应提交？
-它包含 `api_key` 等敏感信息。即使你删除提交，历史记录也可能泄露。
