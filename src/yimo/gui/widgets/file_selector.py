@@ -88,6 +88,12 @@ class FileSelector(QWidget):
         self.dest_edit.setPlaceholderText(self._i18n.t("fs.placeholder.dest"))
         self.dest_btn.setText(self._i18n.t("fs.browse_output"))
 
+    def _suggest_destination(self, src_path: str) -> str | None:
+        p = Path(src_path)
+        if self.radio_dir.isChecked():
+            return str(p.parent / (p.name + "-translate"))
+        return str(p.parent / (p.stem + "-translate" + p.suffix))
+
     def browse_source(self):
         if self.radio_dir.isChecked():
             caption = self._i18n.t("dlg.select_src_dir") if self._i18n else "Select Source Directory"
@@ -99,14 +105,9 @@ class FileSelector(QWidget):
         
         if path:
             self.src_edit.setText(path)
-            # Auto-suggest destination if empty
-            if not self.dest_edit.text():
-                p = Path(path)
-                if self.radio_dir.isChecked():
-                    suggested = p.parent / (p.name + "-zh")
-                else:
-                    suggested = p.parent / (p.stem + "-zh" + p.suffix)
-                self.dest_edit.setText(str(suggested))
+            suggested = self._suggest_destination(path)
+            if suggested:
+                self.dest_edit.setText(suggested)
 
     def browse_dest(self):
         if self.radio_dir.isChecked():
