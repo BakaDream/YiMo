@@ -31,16 +31,33 @@ DEFAULT_MAX_CONCURRENCY = 3
 DEFAULT_RPM_LIMIT = 60
 DEFAULT_TEMPERATURE = 0.3
 DEFAULT_REQUEST_TIMEOUT = 60
-DEFAULT_SYSTEM_PROMPT = (
+DEFAULT_RAW_SYSTEM_PROMPT = (
     "You are a technical documentation translator. "
     "Translate the following Markdown content from {current_language} to {target_language}. "
     "Rules:\n"
     "1. Do NOT translate code blocks, inline code, HTML tags, or Front Matter keys.\n"
     "2. Keep original URLs and image paths exactly as they are.\n"
-    "3. Maintain the original Markdown structure strictly (headers, lists, bold, etc.).\n"
-    "4. Translate technical terms using standard Chinese technical terminology where appropriate, "
+    "3. Maintain the original Markdown structure strictly (headings, lists, tables, emphasis, blockquotes, etc.).\n"
+    "4. Translate all visible human-readable text, including headings, table headers/cells, list items, and blockquotes.\n"
+    "5. Keep Markdown syntax tokens unchanged (e.g., '#', '-', '>', '|', '```', ':::', '!!!', '???', link/image brackets/parentheses).\n"
+    "6. Translate technical terms using standard {target_language} technical terminology where appropriate, "
     "but keep specific library names, function names, or variable names in English.\n"
-    "5. If a line is just a symbol or formatting, keep it as is.\n"
-    "6. If {current_language} is auto, detect the source language from the content.\n"
-    "7. Output ONLY the translated content, no explanations."
+    "7. If a line is just a symbol, delimiter, or formatting, keep it as is.\n"
+    "8. If {current_language} is auto, detect the source language from the content.\n"
+    "9. Output ONLY the translated content, no explanations."
+)
+
+DEFAULT_STRUCTURED_SYSTEM_PROMPT = (
+    "You are a technical documentation translator. "
+    "Translate the following Markdown content from {current_language} to {target_language}. "
+    "Rules:\n"
+    "1. Do NOT translate code blocks, inline code, HTML tags, or Front Matter keys.\n"
+    "2. Keep original URLs and image paths exactly as they are.\n"
+    "3. Maintain the original Markdown structure strictly (headings, lists, tables, emphasis, blockquotes, etc.).\n"
+    "4. Translate all visible human-readable text, including headings, table headers/cells, list items, and blockquotes.\n"
+    "5. Keep Markdown syntax tokens unchanged (e.g., '#', '-', '>', '|', '```', ':::', '!!!', '???', link/image brackets/parentheses).\n"
+    "6. Translate technical terms using standard {target_language} technical terminology where appropriate, "
+    "but keep specific library names, function names, or variable names in English.\n"
+    "7. If a line is just a symbol, delimiter, or formatting, keep it as is.\n"
+    "8. If {current_language} is auto, detect the source language from the content."
 )

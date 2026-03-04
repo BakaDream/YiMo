@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
+from typing import List, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -10,7 +10,8 @@ from yimo.utils.constants import (
     DEFAULT_MODEL,
     DEFAULT_REQUEST_TIMEOUT,
     DEFAULT_RPM_LIMIT,
-    DEFAULT_SYSTEM_PROMPT,
+    DEFAULT_RAW_SYSTEM_PROMPT,
+    DEFAULT_STRUCTURED_SYSTEM_PROMPT,
     DEFAULT_TEMPERATURE,
 )
 from yimo.utils.yaml_utils import dump_yaml, load_yaml
@@ -52,7 +53,29 @@ class AppConfig(BaseModel):
     max_retries: int = Field(default=3, description="Max retries for failed tasks")
     temperature: float = Field(default=DEFAULT_TEMPERATURE, description="Temperature for LLM sampling")
     request_timeout: int = Field(default=DEFAULT_REQUEST_TIMEOUT, description="Request timeout in seconds")
-    system_prompt: str = Field(default=DEFAULT_SYSTEM_PROMPT, description="System prompt for translation")
+    raw_system_prompt: str = Field(default=DEFAULT_RAW_SYSTEM_PROMPT, description="System prompt for raw_markdown mode")
+    structured_system_prompt: str = Field(
+        default=DEFAULT_STRUCTURED_SYSTEM_PROMPT,
+        description="System prompt for structured_graph mode (engine controls JSON-only output format)",
+    )
+
+    translation_mode: Literal["raw_markdown", "structured_graph"] = Field(
+        default="raw_markdown",
+        description="Translation mode: raw_markdown (legacy) or structured_graph (LangGraph).",
+    )
+    structured_chunk_tokens: int = Field(default=10000, description="Max tokens per structured translation batch payload")
+    structured_memory_max_tokens: int = Field(default=5000, description="Max tokens for structured memory (summary+glossary) injected into prompts")
+    structured_max_repair_attempts: int = Field(default=3, description="Max repair attempts for malformed structured outputs per batch")
+    translate_link_text: bool = Field(default=True, description="Translate link text in [text](url); keep URL unchanged")
+    translate_image_alt: bool = Field(default=False, description="Translate image alt in ![alt](src); default false (preserve image syntax)")
+    code_like_short_line_max_chars: int = Field(default=80, description="Heuristic threshold for skipping short code-like lines")
+
+    front_matter_translate_keys: list[str] = Field(default_factory=lambda: ["title", "tags"], description="Front Matter keys to translate (common checkboxes)")
+    front_matter_custom_keys: str = Field(default="", description="Custom Front Matter keys to translate (comma-separated; supports a.b.c paths)")
+    front_matter_denylist_keys: list[str] = Field(
+        default_factory=lambda: ["slug", "url", "permalink", "date", "draft", "layout", "type", "id"],
+        description="Front Matter keys that should never be translated",
+    )
 
     @classmethod
     def default_path(cls) -> Path:

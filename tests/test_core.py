@@ -20,6 +20,9 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.get_active_provider().model, "gpt-4o")
         self.assertEqual(config.get_active_provider().rpm_limit, 60)
         self.assertEqual(config.max_concurrency, 3)
+        self.assertTrue(bool(getattr(config, "raw_system_prompt", "").strip()))
+        self.assertTrue(bool(getattr(config, "structured_system_prompt", "").strip()))
+        self.assertFalse(hasattr(config, "system_prompt"))
 
 if __name__ == "__main__":
     unittest.main()

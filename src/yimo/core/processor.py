@@ -6,7 +6,6 @@ from yimo.models.config import AppConfig
 from yimo.models.task import TranslationTask, TaskStatus
 from yimo.core.translator import Translator
 from yimo.utils.file_utils import collect_files, classify_file, copy_file, read_file_content, write_file_content
-from yimo.utils.rate_limiter import RateLimiter
 
 class Processor:
     def __init__(self, config: AppConfig):
@@ -14,9 +13,7 @@ class Processor:
         self.translator = Translator(config)
         self._stop_flag = threading.Event()
         self._loop = None
-        
-        self.rate_limiter = RateLimiter(config.get_active_provider().rpm_limit)
-        
+
         # To track the main gather task for cancellation
         self._main_task = None
         self._active_tasks = None
@@ -24,7 +21,6 @@ class Processor:
     def update_config(self, config: AppConfig):
         self.config = config
         self.translator.update_config(config)
-        self.rate_limiter.update_limit(config.get_active_provider().rpm_limit)
 
     def scan_directory(self, source_dir: Path, output_dir: Path) -> List[TranslationTask]:
         """
@@ -86,7 +82,7 @@ class Processor:
         
         max_retries_limit = 1 + self.config.max_retries
 
-        async def worker(task: TranslationTask, semaphore: asyncio.Semaphore, use_rate_limiter: bool):
+        async def worker(task: TranslationTask, semaphore: asyncio.Semaphore):
             # If a task is already processing (e.g. from a previous cancelled run), reset it locally first
             # though the outer loop filter should handle this.
             
@@ -121,8 +117,6 @@ class Processor:
                             task.mark_completed()
                             return # Success
                         else:
-                            if use_rate_limiter:
-                                await self.rate_limiter.acquire()
                             if self._stop_flag.is_set():
                                 task.reset()
                                 return
@@ -131,7 +125,7 @@ class Processor:
                             if self._stop_flag.is_set():
                                 task.reset()
                                 return
-                            translated_content = await self.translator.translate_markdown(content)
+                            translated_content = await self.translator.translate_markdown(content, stop_flag=self._stop_flag)
                             if self._stop_flag.is_set():
                                 task.reset()
                                 return
@@ -184,7 +178,7 @@ class Processor:
             # Stage 1: Process Resources
             if resource_tasks:
                 io_semaphore = asyncio.Semaphore(50)
-                self._main_task = asyncio.gather(*(worker(t, io_semaphore, False) for t in resource_tasks))
+                self._main_task = asyncio.gather(*(worker(t, io_semaphore) for t in resource_tasks))
                 await self._main_task
 
             if self._stop_flag.is_set():
@@ -193,7 +187,7 @@ class Processor:
             # Stage 2: Process Translations
             if translation_tasks:
                 api_semaphore = asyncio.Semaphore(self.config.max_concurrency)
-                self._main_task = asyncio.gather(*(worker(t, api_semaphore, True) for t in translation_tasks))
+                self._main_task = asyncio.gather(*(worker(t, api_semaphore) for t in translation_tasks))
                 await self._main_task
 
         except asyncio.CancelledError:

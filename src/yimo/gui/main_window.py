@@ -533,6 +533,7 @@ class MainWindow(QMainWindow):
                 tasks=self.tasks,
                 source_language=getattr(self.config, "source_language", "English"),
                 target_language=getattr(self.config, "target_language", "简体中文"),
+                translation_mode=getattr(self.config, "translation_mode", "raw_markdown"),
             )
             project.save_to_file(Path(path))
             self.status_bar.showMessage(self.i18n.t("main.status.project_saved", path=path))
@@ -557,6 +558,7 @@ class MainWindow(QMainWindow):
             # Restore translation languages (runtime only)
             self.config.source_language = getattr(project, "source_language", "English")
             self.config.target_language = getattr(project, "target_language", "简体中文")
+            self.config.translation_mode = getattr(project, "translation_mode", getattr(self.config, "translation_mode", "raw_markdown"))
             with QSignalBlocker(self.source_language_combo), QSignalBlocker(self.target_language_combo):
                 self._set_combo_to_value(self.source_language_combo, self.config.source_language)
                 self._set_combo_to_value(self.target_language_combo, self.config.target_language)
