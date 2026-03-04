@@ -135,10 +135,7 @@ class StructuredGraphEngine:
             raise Exception(f"Structured translation failed: {e}")
 
     def _build_runner(self) -> Callable[[StructuredState], Any]:
-        try:
-            from langgraph.graph import END, StateGraph  # type: ignore
-        except Exception:
-            return self._run_fallback
+        from langgraph.graph import END, StateGraph  # type: ignore
 
         async def init_state(state: StructuredState) -> dict[str, Any]:
             self._ensure_not_stopped(state)
@@ -191,25 +188,48 @@ class StructuredGraphEngine:
                 target_lang=state["target_lang"],
                 payload=state["batch_payload"],
             )
-            msg = await llm.ainvoke([sys_msg, user_msg])
-            return {"llm_raw": getattr(msg, "content", "")}
+            if not hasattr(llm, "with_structured_output"):
+                raise RuntimeError("LLM does not support with_structured_output()")
 
-        async def parse_llm_output(state: StructuredState) -> dict[str, Any]:
-            self._ensure_not_stopped(state)
-            raw = (state.get("llm_raw") or "").strip()
-            if raw.startswith("```"):
-                lines = raw.splitlines()
-                if lines and lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                raw = "\n".join(lines).strip()
             try:
-                data = json.loads(raw)
-                parsed = StructuredLLMOutput.model_validate(data)
-                return {"llm_json": parsed, "validation": _Validation(ok=True, error=None)}
+                structured_llm = llm.with_structured_output(
+                    StructuredLLMOutput,
+                    include_raw=True,
+                )
             except Exception as e:
-                return {"llm_json": None, "validation": _Validation(ok=False, error=f"Output schema error: {e}")}
+                raise RuntimeError(f"Failed to configure structured output: {e}")
+
+            llm_raw = ""
+            try:
+                result = await structured_llm.ainvoke([sys_msg, user_msg])
+            except Exception as e:
+                return {"llm_raw": str(e), "llm_json": None, "validation": _Validation(ok=False, error=f"Output schema error: {e}")}
+
+            parsed: StructuredLLMOutput | None = None
+            parsing_error: Any | None = None
+
+            if isinstance(result, StructuredLLMOutput):
+                parsed = result
+            elif isinstance(result, dict):
+                parsing_error = result.get("parsing_error")
+                llm_raw = self._summarize_llm_raw(result.get("raw"))
+                parsed_any = result.get("parsed")
+                if isinstance(parsed_any, StructuredLLMOutput):
+                    parsed = parsed_any
+                elif parsed_any is not None:
+                    try:
+                        parsed = StructuredLLMOutput.model_validate(parsed_any)
+                    except Exception as e:
+                        parsing_error = parsing_error or e
+                        parsed = None
+            else:
+                llm_raw = self._summarize_llm_raw(result)
+
+            if parsing_error is not None:
+                return {"llm_raw": llm_raw, "llm_json": None, "validation": _Validation(ok=False, error=f"Output schema error: {parsing_error}")}
+            if parsed is None:
+                return {"llm_raw": llm_raw, "llm_json": None, "validation": _Validation(ok=False, error="No parsed output")}
+            return {"llm_raw": llm_raw, "llm_json": parsed, "validation": _Validation(ok=True, error=None)}
 
         async def validate_llm_output(state: StructuredState) -> dict[str, Any]:
             self._ensure_not_stopped(state)
@@ -277,10 +297,10 @@ class StructuredGraphEngine:
                 "expected_ids": state.get("batch_ids", []),
                 "previous_output_snippet": llm_raw,
                 "requirements": [
-                    "Output JSON only (no markdown fences, no explanations).",
+                    "Output must conform to the requested schema (no markdown fences, no explanations).",
                     "Return translations for all expected ids, exactly once each.",
                     "Do not remove or alter any placeholders like [[YIMO_PH_000001]].",
-                    "The JSON object MUST include both keys: translations (array) and memory (object).",
+                    "The output MUST include both keys: translations (array) and memory (object).",
                 ],
             }
             payload = self._build_payload(
@@ -348,7 +368,6 @@ class StructuredGraphEngine:
         g.add_node("select_batch", select_batch)
         g.add_node("rate_limit_acquire", rate_limit_acquire)
         g.add_node("llm_translate", llm_translate)
-        g.add_node("parse_llm_output", parse_llm_output)
         g.add_node("validate_llm_output", validate_llm_output)
         g.add_node("commit_batch", commit_batch)
         g.add_node("update_memory", update_memory)
@@ -362,8 +381,7 @@ class StructuredGraphEngine:
         g.add_edge("init_state", "select_batch")  # segment_document already done
         g.add_edge("select_batch", "rate_limit_acquire")
         g.add_edge("rate_limit_acquire", "llm_translate")
-        g.add_edge("llm_translate", "parse_llm_output")
-        g.add_edge("parse_llm_output", "validate_llm_output")
+        g.add_edge("llm_translate", "validate_llm_output")
         g.add_conditional_edges("validate_llm_output", route_validation, {"commit_batch": "commit_batch", "prepare_repair": "prepare_repair"})
         g.add_edge("commit_batch", "update_memory")
         g.add_edge("update_memory", "advance_cursor")
@@ -380,170 +398,6 @@ class StructuredGraphEngine:
 
         return runner
 
-    async def _run_fallback(self, state: StructuredState) -> dict[str, Any]:
-        state = dict(state)
-        state.update({"cursor": 0, "translations": {}, "memory_summary": "", "memory_glossary": [], "errors": []})
-
-        doc: SegmentedDocument = state["doc"]
-        max_attempts = int(state.get("max_attempts") or 2)
-
-        while state["cursor"] < len(doc.translatable_items):
-            state.update(await self._fallback_select_batch(state))
-
-            attempt = 0
-            while True:
-                self._ensure_not_stopped(state)
-                await self._ctx.acquire_rate_limit()
-                llm = await self._get_llm()
-                sys_msg, user_msg = self._build_messages(
-                    system_prompt=state["system_prompt"],
-                    source_lang=state["source_lang"],
-                    target_lang=state["target_lang"],
-                    payload=state["batch_payload"],
-                )
-                msg = await llm.ainvoke([sys_msg, user_msg])
-                raw = (getattr(msg, "content", "") or "").strip()
-                try:
-                    parsed = self._fallback_parse(raw)
-                except Exception as e:
-                    attempt += 1
-                    if attempt >= max_attempts:
-                        raise ValueError(f"JSON parse failed after repairs: {e}")
-                    state["repair"] = {"error": f"JSON parse error: {e}", "expected_ids": state["batch_ids"]}
-                    state["batch_payload"] = self._build_payload(
-                        memory_summary=state.get("memory_summary", ""),
-                        memory_glossary=state.get("memory_glossary", []),
-                        items=state.get("batch_items", []),
-                        memory_max_tokens=state["memory_max_tokens"],
-                        model_name=state.get("model_name") or "",
-                        repair=state["repair"],
-                    )
-                    continue
-
-                state["llm_json"] = parsed
-                validation = self._fallback_validate(state)
-                if validation.ok:
-                    for t in parsed.translations:
-                        state["translations"][t.id] = t.text
-                    state.update(self._fallback_update_memory(state))
-                    state["cursor"] += len(state["batch_ids"])
-                    break
-
-                attempt += 1
-                if attempt >= max_attempts:
-                    raise ValueError(validation.error or "validation failed")
-                state["repair"] = {"error": validation.error, "expected_ids": state["batch_ids"]}
-                state["batch_payload"] = self._build_payload(
-                    memory_summary=state.get("memory_summary", ""),
-                    memory_glossary=state.get("memory_glossary", []),
-                    items=state.get("batch_items", []),
-                    memory_max_tokens=state["memory_max_tokens"],
-                    model_name=state.get("model_name") or "",
-                    repair=state["repair"],
-                )
-
-        state.update(self._fallback_assemble(state))
-        self._fallback_final_validate(state)
-        return state
-
-    async def _fallback_select_batch(self, state: dict[str, Any]) -> dict[str, Any]:
-        doc: SegmentedDocument = state["doc"]
-        cursor: int = state["cursor"]
-        chunk_tokens: int = state["chunk_tokens"]
-        model_name: str = state.get("model_name") or ""
-        items = doc.translatable_items[cursor:]
-        picked: list[TranslatableItem] = []
-        total = 0
-        for it in items:
-            add_tokens = count_tokens(it.text, model_name) + 40
-            if picked and total + add_tokens > chunk_tokens:
-                break
-            picked.append(it)
-            total += add_tokens
-            if total >= chunk_tokens:
-                break
-        batch_ids = [it.id for it in picked]
-        batch_items = [{"id": it.id, "text": it.text} for it in picked]
-        payload = self._build_payload(
-            memory_summary=state.get("memory_summary", ""),
-            memory_glossary=state.get("memory_glossary", []),
-            items=batch_items,
-            memory_max_tokens=state["memory_max_tokens"],
-            model_name=model_name,
-            repair=state.get("repair"),
-        )
-        return {"batch_ids": batch_ids, "batch_items": batch_items, "batch_payload": payload}
-
-    def _fallback_parse(self, raw: str) -> StructuredLLMOutput:
-        s = raw.strip()
-        if s.startswith("```"):
-            lines = s.splitlines()
-            if lines and lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].startswith("```"):
-                lines = lines[:-1]
-            s = "\n".join(lines).strip()
-        data = json.loads(s)
-        return StructuredLLMOutput.model_validate(data)
-
-    def _fallback_validate(self, state: dict[str, Any]) -> _Validation:
-        doc: SegmentedDocument = state["doc"]
-        id_to_placeholders = {it.id: set(it.placeholders.keys()) for it in doc.translatable_items}
-        parsed: StructuredLLMOutput = state["llm_json"]
-        batch_ids: list[str] = state["batch_ids"]
-        got_ids = [t.id for t in parsed.translations]
-        if sorted(got_ids) != sorted(batch_ids) or len(got_ids) != len(batch_ids):
-            return _Validation(ok=False, error=f"IDs mismatch: expected={batch_ids}, got={got_ids}")
-        for t in parsed.translations:
-            expected = id_to_placeholders.get(t.id, set())
-            missing = [p for p in expected if p not in (t.text or "")]
-            if missing:
-                return _Validation(ok=False, error=f"Missing placeholders for {t.id}: {missing}")
-            unknown = [p for p in PLACEHOLDER_RE.findall(t.text or "") if p not in expected]
-            if unknown:
-                return _Validation(ok=False, error=f"Unknown placeholders for {t.id}: {unknown}")
-        return _Validation(ok=True, error=None)
-
-    def _fallback_update_memory(self, state: dict[str, Any]) -> dict[str, Any]:
-        parsed: StructuredLLMOutput = state["llm_json"]
-        memory_max_tokens: int = state["memory_max_tokens"]
-        model_name: str = state.get("model_name") or ""
-        summary = trim_to_tokens((parsed.memory.summary or "").strip(), model_name, memory_max_tokens).strip()
-        old_glossary: list[dict[str, str]] = list(state.get("memory_glossary") or [])
-        new_items = [{"source": (g.source or "").strip(), "target": (g.target or "").strip()} for g in parsed.memory.glossary]
-        merged: list[dict[str, str]] = []
-        seen: set[str] = set()
-        for item in (old_glossary + new_items)[-100:]:
-            key = (item.get("source") or "").lower()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            merged.append(item)
-            if len(merged) >= 50:
-                break
-        return {"memory_summary": summary, "memory_glossary": merged}
-
-    def _fallback_assemble(self, state: dict[str, Any]) -> dict[str, Any]:
-        doc: SegmentedDocument = state["doc"]
-        translations: dict[str, str] = state.get("translations") or {}
-        fm_text = ""
-        if doc.front_matter is not None:
-            fm_text, _ = apply_front_matter_targets(doc.front_matter, translations, doc.front_matter_targets)
-        out_parts: list[str] = []
-        for seg in doc.body_segments:
-            if seg.translatable_id:
-                translated = translations.get(seg.translatable_id, seg.template or "")
-                out_parts.append(unmask_text(translated, seg.placeholders))
-            else:
-                out_parts.append(seg.raw)
-        return {"final_text": fm_text + "".join(out_parts)}
-
-    def _fallback_final_validate(self, state: dict[str, Any]) -> None:
-        final_text = state.get("final_text") or ""
-        leftovers = PLACEHOLDER_RE.findall(final_text)
-        if leftovers:
-            raise ValueError(f"Leftover placeholders: {leftovers[:5]}")
-
     async def _get_llm(self) -> Any:
         if self._llm is not None:
             return self._llm
@@ -556,50 +410,23 @@ class StructuredGraphEngine:
         provider = self._ctx.get_provider()
         config = self._ctx.get_config()
 
-        # Prefer JSON-only mode when supported by the provider/model.
-        kwargs: dict[str, Any] = {
-            "temperature": float(config.temperature),
-            "model_kwargs": {"response_format": {"type": "json_object"}},
-        }
+        kwargs: dict[str, Any] = {"temperature": float(config.temperature)}
 
-        # best-effort compatibility across versions
-        for model_kw in ("model", "model_name"):
-            kwargs[model_kw] = provider.model
-            break
-        for key_kw in ("api_key", "openai_api_key"):
-            kwargs[key_kw] = provider.api_key
-            break
-        for base_kw in ("base_url", "openai_api_base"):
-            kwargs[base_kw] = provider.base_url
-            break
-        for timeout_kw in ("timeout", "request_timeout"):
-            kwargs[timeout_kw] = float(config.request_timeout)
-            break
+        kwargs["model"] = provider.model
+        kwargs["api_key"] = provider.api_key
+        kwargs["base_url"] = provider.base_url
+        kwargs["timeout"] = float(config.request_timeout)
 
         try:
             return ChatOpenAI(**kwargs)
         except TypeError:
             # try alternate naming
             kwargs2 = dict(kwargs)
-            if "model" in kwargs2:
-                kwargs2["model_name"] = kwargs2.pop("model")
-            if "api_key" in kwargs2:
-                kwargs2["openai_api_key"] = kwargs2.pop("api_key")
-            if "base_url" in kwargs2:
-                kwargs2["openai_api_base"] = kwargs2.pop("base_url")
-            if "timeout" in kwargs2:
-                kwargs2["request_timeout"] = kwargs2.pop("timeout")
-            try:
-                return ChatOpenAI(**kwargs2)
-            except Exception:
-                # Fallback: disable JSON mode if unsupported.
-                kwargs2["model_kwargs"] = {}
-                return ChatOpenAI(**kwargs2)
-        except Exception:
-            # Fallback: disable JSON mode if unsupported.
-            kwargs_plain = dict(kwargs)
-            kwargs_plain["model_kwargs"] = {}
-            return ChatOpenAI(**kwargs_plain)
+            kwargs2["model_name"] = kwargs2.pop("model", provider.model)
+            kwargs2["openai_api_key"] = kwargs2.pop("api_key", provider.api_key)
+            kwargs2["openai_api_base"] = kwargs2.pop("base_url", provider.base_url)
+            kwargs2["request_timeout"] = kwargs2.pop("timeout", float(config.request_timeout))
+            return ChatOpenAI(**kwargs2)
 
     def _build_messages(self, *, system_prompt: str, source_lang: str, target_lang: str, payload: str) -> tuple[Any, Any]:
         try:
@@ -608,7 +435,7 @@ class StructuredGraphEngine:
             raise RuntimeError(f"langchain-core is required for structured_graph mode: {e}")
 
         rules = (
-            "\n\nYou MUST respond with a single JSON object only.\n"
+            "\n\nYou MUST produce an output that conforms to the requested schema.\n"
             "If the System Prompt conflicts with any rule below, follow the rules below.\n"
             "Do not include markdown fences or any extra text.\n"
             "Keep all placeholders like [[YIMO_PH_000001]] EXACTLY unchanged.\n"
@@ -619,6 +446,31 @@ class StructuredGraphEngine:
         )
         sys = f"{system_prompt}{rules}"
         return SystemMessage(content=sys), HumanMessage(content=payload)
+
+    def _summarize_llm_raw(self, raw: Any) -> str:
+        if raw is None:
+            return ""
+        if isinstance(raw, str):
+            return raw
+        content = getattr(raw, "content", None)
+        if isinstance(content, str) and content.strip():
+            return content
+        tool_calls = getattr(raw, "tool_calls", None)
+        if tool_calls:
+            try:
+                return json.dumps({"tool_calls": tool_calls}, ensure_ascii=False)
+            except Exception:
+                return str(tool_calls)
+        additional_kwargs = getattr(raw, "additional_kwargs", None)
+        if additional_kwargs:
+            try:
+                return json.dumps({"additional_kwargs": additional_kwargs}, ensure_ascii=False)
+            except Exception:
+                return str(additional_kwargs)
+        try:
+            return str(raw)
+        except Exception:
+            return ""
 
     def _build_payload(
         self,

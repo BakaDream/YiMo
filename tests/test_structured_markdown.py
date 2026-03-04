@@ -20,23 +20,31 @@ class _FakeLLM:
       - then returns correct JSON when repair instructions exist
     """
 
-    async def ainvoke(self, messages):
-        payload = messages[-1].content
-        data = json.loads(payload)
-        items = data["items"]
-        repair = data.get("rules", {}).get("repair")
+    def with_structured_output(self, schema, *, method="json_mode", include_raw=False, **kwargs):
+        class _Runnable:
+            async def ainvoke(_, messages):
+                payload = messages[-1].content
+                data = json.loads(payload)
+                items = data["items"]
+                repair = data.get("rules", {}).get("repair")
 
-        if not repair:
-            # Trigger repair: drop one id
-            translations = [{"id": items[0]["id"], "text": items[0]["text"]}]
-        else:
-            translations = [{"id": it["id"], "text": it["text"]} for it in items]
+                if not repair:
+                    # Trigger repair: drop one id
+                    translations = [{"id": items[0]["id"], "text": items[0]["text"]}]
+                else:
+                    translations = [{"id": it["id"], "text": it["text"]} for it in items]
 
-        out = {
-            "translations": translations,
-            "memory": {"summary": "s", "glossary": [{"source": "A", "target": "B"}]},
-        }
-        return _DummyMsg(json.dumps(out, ensure_ascii=False))
+                out = {
+                    "translations": translations,
+                    "memory": {"summary": "s", "glossary": [{"source": "A", "target": "B"}]},
+                }
+                raw = _DummyMsg(json.dumps(out, ensure_ascii=False))
+                parsed = schema.model_validate(out) if hasattr(schema, "model_validate") else out
+                if include_raw:
+                    return {"raw": raw, "parsed": parsed, "parsing_error": None}
+                return parsed
+
+        return _Runnable()
 
 
 async def _no_rate_limit():
