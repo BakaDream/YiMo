@@ -1,93 +1,97 @@
 # YiMo（译墨）
 
-YiMo 是一个基于 **PySide6** 的桌面 GUI 工具，用于批量翻译文档（主要是 Markdown），并在输出侧**保持原目录结构**。它也会自动识别并复制资源文件（图片、CSS、JS 等），避免你手工整理。
+<div align="center">
+  <img src="src/yimo/icons/none-background.svg" width="120" alt="YiMo logo" />
+  <h1>YiMo（译墨）</h1>
+  <p>一个基于 <b>PySide6</b> 的桌面 GUI 工具：批量翻译文档（主要是 Markdown），并在输出侧<b>保持原目录结构</b>与<b>语法结构</b>。</p>
+  <p>YiMo is a desktop GUI app for translating docs while preserving structure.</p>
+  <p>
+    <a href="https://github.com/BakaDream/YiMo/releases"><img alt="Release" src="https://img.shields.io/github/v/release/BakaDream/YiMo?style=flat-square" /></a>
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/BakaDream/YiMo?style=flat-square" /></a>
+    <img alt="Python" src="https://img.shields.io/badge/python-3.12%2B-blue?style=flat-square" />
+  </p>
+  <p>简体中文 | <a href="README.en.md">English</a></p>
+</div>
 
-> 项目定位：面向个人/团队的文档翻译工作流工具（支持 OpenAI-compatible providers）。
+## 适合谁 / 不适合谁
 
-## 功能特性
+适合：
+- 需要把一整个文档目录（含图片/静态资源）翻译成另一种语言的人/团队
+- 希望输出仍可直接用于 MkDocs / VitePress / Hugo / Hexo 等站点构建的人
+- 使用 OpenAI-compatible Providers（`base_url`/`api_key`/`model`）的人
 
-- **目录扫描**：批量生成翻译任务列表，保持相对路径结构
-- **资源复制**：图片/静态资源自动复制（不走翻译）
-- **可控并发**：翻译任务并发、失败重试、可中止
-- **项目进度**：支持保存/加载项目进度（YAML）
-- **多 Provider**：支持 OpenAI-compatible `base_url` + `api_key` + `model`
-- **UI i18n**：English / 简体中文
-- **翻译语言选择**：原语言支持 `auto`，并内置多语言 + 支持自定义输入
-- **打包**：PyInstaller & Nuitka，多平台二进制
+不适合：
+- 需要“机器翻译式逐字对齐/术语库强控”的场景（YiMo 更偏工作流与结构稳定）
 
-## 下载与运行（推荐）
+## 核心价值
 
-从 GitHub Releases 下载对应平台产物即可运行。
+- **保持目录结构**：输出侧保持源目录相对路径
+- **资源自动复制**：图片 / CSS / JS 等静态资源会复制，不走翻译
+- **结构稳定**：尽量保持 Markdown 结构与换行；对占位符（如 `[[YIMO_PH_000001]]`）有业务级校验
+- **可控执行**：并发、失败重试、可中止
+- **断点续跑**：保存/加载项目进度（YAML）
 
-- Windows：下载 `*.exe`，双击运行
-- macOS：下载 `*.zip`，解压后得到 `YiMo.app`，拖拽到「应用程序」后运行
-- Linux：下载无后缀可执行文件，`chmod +x` 后运行
+## Quickstart
 
-同一个平台会提供两套产物：
-- `pyinstaller`：更传统的 Python 打包方式
-- `nuitka`：编译式打包方式
+### 方式一：下载运行（推荐）
 
-你可以任选其一使用（功能一致）。
+1. 前往 GitHub Releases 下载对应平台产物：<https://github.com/BakaDream/YiMo/releases>
+2. 打开应用后选择 **Source** 与 **Output**（目录模式或单文件模式）
+3. 点击 **Scan** → 生成任务列表
+4. 选择 Source/Target language → 点击 **Start**
 
-## 从源码运行（开发者/想自己跑）
+常用操作：**Stop**（中止）、**Retry Failed**（重试失败项）、**Save Project / Load Project**（保存/恢复进度）。
+
+### 方式二：从源码运行
 
 要求：Python 3.12 + `uv`
 
 ```bash
 uv sync --locked
-uv run python main.py
-```
-
-也可以通过入口命令运行：
-
-```bash
 uv run yimo
 ```
 
-## GUI 使用方法（建议流程）
+或：
 
-1. 选择 **Source** 与 **Output**（目录模式或单文件模式）
-2. 点击 **Scan** 扫描生成任务列表
-3. 选择翻译语言：
-   - **Source language**：可选 `auto`（自动识别）/ 内置语言 / 自定义输入
-   - **Target language**：内置语言 / 自定义输入
-4. 点击 **Start** 开始翻译
-5. 如需中止：点击 **Stop**
-6. 失败项可用 **Retry Failed** 重试
-7. 需要下次继续：点击 **Save Project** 保存项目进度；之后可用 **Load Project** 恢复
+```bash
+uv run python main.py
+```
 
-## 配置说明（全部在 GUI 内完成）
+## 关键概念（v0.2+）
 
-应用会在项目目录写入 `yimo.yaml`（包含 providers 与 API Key 等）。你**不需要手写**该文件，全部在 GUI 中完成即可。
+### 翻译模式
 
-注意：
-- `yimo.yaml` **包含密钥**，请勿提交到仓库或分享给他人
-- 本仓库已将 `yimo.yaml` 加入 `.gitignore`
+| 模式 | 适用场景 | 特点 |
+| --- | --- | --- |
+| `raw_markdown` | 简单/快速/容错优先 | 直接翻译 Markdown 文本（更“直接”，但结构约束相对弱） |
+| `structured_graph` | 结构稳定优先（推荐长文档） | 基于 **LangGraph** 分批翻译，并用 LangChain `with_structured_output()` 做结构化解析；仍保留**业务校验 + repair 重试**（最多 `structured_max_repair_attempts`） |
 
-### Provider 配置（OpenAI-compatible）
+### System Prompt 拆分
 
-在 Settings 中可以：
-- 新增/编辑/删除 Provider
-- 设置 `base_url`、`api_key`、`model`、`rpm_limit`
-- 选择当前启用的 Provider
-- 调整并发/重试/timeout/temperature
+v0.2.0 起，配置改为两套提示词：
+- `raw_system_prompt`：用于 `raw_markdown`
+- `structured_system_prompt`：用于 `structured_graph`
 
-### System Prompt 占位符
+System Prompt 仍支持占位符：
+- `{current_language}`：来自主界面的 Source language
+- `{target_language}`：来自主界面的 Target language
 
-你可以在 System Prompt 中使用：
-- `{current_language}`：原语言（来自主界面的 Source language）
-- `{target_language}`：目标语言（来自主界面的 Target language）
+### 配置文件 `yimo.yaml`
 
-这两个占位符会在**每次翻译请求前**动态替换。
+应用会在项目目录写入 `yimo.yaml`（包含 providers 与 API Key 等）。你一般不需要手写，推荐在 GUI 的 Settings 里完成。
 
-## 保存/加载项目进度
+安全提醒：
+- `yimo.yaml` **包含密钥**，不要提交到仓库、不要分享给他人
 
-Save Project 会保存：
-- 当前 Source/Output 路径
-- 任务列表与状态（pending/processing/completed/failed…）
-- 当前选择的翻译语言（Source/Target language）
+## 功能特性
 
-Load Project 会恢复以上内容，便于断点续跑。
+- **目录扫描**：批量生成翻译任务列表，保持相对路径结构
+- **资源复制**：图片/静态资源自动复制（不走翻译）
+- **多 Provider**：支持 OpenAI-compatible `base_url` + `api_key` + `model`（可在 Settings 管理）
+- **可控并发**：并发、失败重试、可中止
+- **项目进度**：支持保存/加载项目进度（YAML）
+- **UI i18n**：English / 简体中文
+- **打包**：PyInstaller & Nuitka，多平台二进制
 
 ## 打包（本机）
 
@@ -111,12 +115,10 @@ uv run --with nuitka --with zstandard --with ordered-set python scripts/nuitka/b
 
 ## CI / Releases
 
-手动构建（Actions / Artifacts）：
-- PyInstaller：`.github/workflows/build-binaries.yml`
-- Nuitka：`.github/workflows/build-binaries-nuitka.yml`
-
-打 tag 发布 release（自动上传二进制）：
-- `.github/workflows/release.yml`（tag `v*` 触发）
+- 手动构建（Actions / Artifacts）：
+  - PyInstaller：`.github/workflows/build-binaries.yml`
+  - Nuitka：`.github/workflows/build-binaries-nuitka.yml`
+- 打 tag 发布 release（自动上传二进制）：`.github/workflows/release.yml`（tag `v*` 触发）
 
 ## 开发指南
 
@@ -127,7 +129,7 @@ uv run python -m unittest discover -s tests
 
 目录结构（核心）：
 - `src/yimo/gui/`：GUI、QSS 主题、icons
-- `src/yimo/core/`：扫描/翻译处理器与 OpenAI 调用
+- `src/yimo/core/`：扫描/翻译处理器与 LLM 调用
 - `src/yimo/models/`：配置与任务/项目进度模型
 - `tests/`：单元测试
 

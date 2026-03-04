@@ -1,6 +1,6 @@
 [project]
 name = "yimo"
-version = "0.1.0"
+version = "0.2.0"
 description = "YiMo（译墨）- A GUI tool for translating documentation with LLM providers"
 readme = "README.md"
 requires-python = ">=3.12"
